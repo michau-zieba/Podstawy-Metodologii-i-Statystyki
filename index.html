@@ -27,8 +27,9 @@ a.card:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
 .t{font-family:var(--f-display);font-size:1.25em;line-height:1.15}
 .d{color:var(--soft);font-size:.9em}
 .go{font-weight:700;font-size:1.4em}
-.soon{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;border:3px dashed #b9b9b9;padding:16px 20px;color:#8a8a8a}
+.soon,.msg{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;border:3px dashed #b9b9b9;padding:16px 20px;color:#8a8a8a}
 .soon .num{color:#b9b9b9}
+.msg{grid-template-columns:1fr}
 @media (prefers-reduced-motion:reduce){a.card{transition:none}}
 </style>
 </head>
@@ -38,10 +39,37 @@ a.card:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
   <div class="eyebrow">Materiały do zajęć</div>
   <h1>Podstawy Metodologii i Statystyki</h1>
   <div><span class="author">mgr Michał Zięba</span></div>
-  <ol>
-    <li><a class="card" href="zajecia1.html"><span class="num">1</span><span><span class="t">Wstęp do Jamovi i opis statystyczny zmiennych</span><br><span class="d">rodzaje zmiennych, podzbiory, rekodowanie, wskaźniki, filtry</span></span><span class="go" aria-hidden="true">→</span></a></li>
-    <li><div class="soon"><span class="num">2</span><span>Kolejne zajęcia pojawią się tutaj.</span></div></li>
-  </ol>
+  <ol id="list"><li><div class="msg">Wczytuję listę zajęć…</div></li></ol>
 </main>
+<script>
+/* Lista buduje się sama: strona sprawdza pliki zajecia1.html, zajecia2.html, …
+   które leżą obok niej w repozytorium, i z każdego bierze tytuł pierwszego slajdu.
+   Żeby dodać zajęcia, wystarczy wrzucić kolejny plik zajeciaN.html. */
+(function(){
+const MAX=30;
+const list=document.getElementById('list');
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+async function probe(n){
+  const url='zajecia'+n+'.html';
+  try{
+    const r=await fetch(url,{headers:{Range:'bytes=0-60000'},cache:'no-cache'});
+    if(!(r.ok||r.status===206))return null;
+    const html=(await r.text()).slice(0,60000);
+    const doc=new DOMParser().parseFromString(html,'text/html');
+    const h1=doc.querySelector('h1');
+    const title=(h1&&h1.textContent.trim())||(doc.querySelector('title')||{}).textContent||('Zajęcia '+n);
+    return {n,url,title:title.replace(/\s+/g,' ')};
+  }catch(e){return null}
+}
+Promise.all(Array.from({length:MAX},(_,i)=>probe(i+1))).then(res=>{
+  const found=res.filter(Boolean);
+  if(location.protocol==='file:'){list.innerHTML='<li><div class="msg">Ta strona buduje listę sama, ale tylko po wrzuceniu na GitHub Pages. Otwarta z dysku nie widzi plików obok siebie.</div></li>';return}
+  if(!found.length){list.innerHTML='<li><div class="msg">Nie znalazłem jeszcze żadnych plików zajecia1.html, zajecia2.html… w tym repozytorium.</div></li>';return}
+  const next=Math.max(...found.map(f=>f.n))+1;
+  list.innerHTML=found.map(f=>'<li><a class="card" href="'+esc(f.url)+'"><span class="num">'+f.n+'</span><span><span class="t">'+esc(f.title)+'</span><br><span class="d">Zajęcia '+f.n+'</span></span><span class="go" aria-hidden="true">→</span></a></li>').join('')+
+    '<li><div class="soon"><span class="num">'+next+'</span><span>Kolejne zajęcia pojawią się tutaj.</span></div></li>';
+});
+})();
+</script>
 </body>
 </html>
