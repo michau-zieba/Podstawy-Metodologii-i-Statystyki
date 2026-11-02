@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Podstawy Metodologii i Statystyki</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Courier+Prime:wght@400;700&display=swap">
+<style>
+:root{
+  --paper:#ffffff;--ink:#111111;--soft:#4a4a4a;--red:#e3201b;--yellow:#ffc21a;--blue:#1f78c8;
+  --f-display:"Titan One","Arial Black",Impact,sans-serif;
+  --f-body:"Courier Prime","Courier New",Courier,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:18px;line-height:1.5}
+main{max-width:860px;margin:0 auto;padding-block:48px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+.bar{height:6px;background:var(--red);width:90px}
+.eyebrow{font-weight:700;text-transform:uppercase;letter-spacing:.14em;font-size:.75em;color:var(--soft)}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(36px,7vw,64px);line-height:1.02;margin:0;text-wrap:balance}
+.author{display:inline-block;background:linear-gradient(transparent 62%,var(--yellow) 62%,var(--yellow) 90%,transparent 90%)}
+ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:18px}
+a.card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;align-items:center;text-decoration:none;color:var(--ink);border:3px solid var(--ink);padding:16px 20px;box-shadow:7px 7px 0 var(--yellow);transition:transform .08s,box-shadow .08s}
+a.card:hover{background:#fff7da}
+a.card:active{transform:translate(4px,4px);box-shadow:3px 3px 0 var(--yellow)}
+a.card:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.num{font-family:var(--f-display);font-size:40px;line-height:1;min-width:1.2em;text-align:center}
+.t{font-family:var(--f-display);font-size:1.25em;line-height:1.15}
+.d{color:var(--soft);font-size:.9em}
+.go{font-weight:700;font-size:1.4em}
+.soon{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;border:3px dashed #b9b9b9;padding:16px 20px;color:#8a8a8a}
+.soon .num{color:#b9b9b9}
+@media (prefers-reduced-motion:reduce){a.card{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <div class="bar"></div>
+  <div class="eyebrow">Materiały do zajęć</div>
+  <h1>Podstawy Metodologii i Statystyki</h1>
+  <div><span class="author">mgr Michał Zięba</span></div>
+  <ol>
+    <li><a class="card" href="zajecia1.html"><span class="num">1</span><span><span class="t">Wstęp do Jamovi i opis statystyczny zmiennych</span><br><span class="d">rodzaje zmiennych, podzbiory, rekodowanie, wskaźniki, filtry</span></span><span class="go" aria-hidden="true">→</span></a></li>
+    <li><div class="soon"><span class="num">2</span><span>Kolejne zajęcia pojawią się tutaj.</span></div></li>
+  </ol>
+</main>
+</body>
+</html>
