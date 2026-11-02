@@ -25,18 +25,20 @@
   --f-hand:"Caveat Brush","Comic Sans MS","Segoe Print",cursive;
 }
 html,body{height:100%}
-body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:clamp(15px,1.25vw + 6px,21px);line-height:1.45;overflow:hidden}
+body{margin:0}
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:calc(clamp(16px,1.05vw + 10px,34px) * var(--fs,1));line-height:1.45;overflow:hidden}
 .deck{position:relative;height:100%;display:flex;flex-direction:column}
-.stage{position:relative;flex:1;min-height:0}
+.stage{position:relative;flex:1;min-height:0;overflow:hidden}
 .slide{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding-block:clamp(16px,3.5vh,44px) 24px;
   padding-left:max(16px,env(safe-area-inset-left,0px),4vw);padding-right:max(16px,env(safe-area-inset-right,0px),4vw);
   opacity:0;visibility:hidden;transform:translateX(24px);transition:opacity .35s ease,transform .35s ease,visibility 0s linear .35s}
 .slide.on{opacity:1;visibility:visible;transform:none;transition:opacity .35s ease,transform .35s ease}
 .slide.back{transform:translateX(-24px)}
-.inner{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(14px,2.2vh,26px)}
+.inner{max-width:min(100%,calc(1560px * var(--fs,1)));margin:0 auto;display:flex;flex-direction:column;gap:clamp(14px,2.2vh,26px)}
 h1,h2{font-family:var(--f-display);font-weight:400;line-height:1.02;margin:0;text-wrap:balance;letter-spacing:.005em}
-h1{font-size:clamp(40px,6.4vw,92px)}
-h2{font-size:clamp(30px,4.6vw,66px)}
+h1{font-size:calc(clamp(40px,6.6vw,124px) * var(--fs,1))}
+h2{font-size:calc(clamp(30px,4.6vw,88px) * var(--fs,1))}
 h3{font-family:var(--f-body);font-weight:700;font-size:1.05em;margin:0}
 p{margin:0;max-width:62ch}
 .red{color:var(--red);font-weight:700}
@@ -46,6 +48,8 @@ b,strong{font-weight:700}
 .ill{max-width:100%;height:auto;display:block;margin:0 auto}
 .shot{max-width:100%;height:auto;display:block;border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink)}
 .shotwrap{overflow-x:auto}
+.shotwrap img.ill{max-height:calc(100vh - 330px);width:auto}
+.side-ill{max-height:calc(100vh - 200px);width:auto}
 ul.dots{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.7em}
 ul.dots li{padding-left:1.2em;position:relative;max-width:64ch}
 ul.dots li::before{content:"•";position:absolute;left:0}
@@ -147,7 +151,7 @@ table.ft tr.in td.f{color:var(--green)}
 .hint{font-size:.85em;color:var(--ink-soft)}
 
 /* recode practice (Jamovi look-alike) */
-.rk{display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:clamp(16px,3vw,40px);align-items:start}
+.rk{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:clamp(16px,3vw,40px);align-items:start}
 .rk > *{min-width:0}
 .rk-panel{display:flex;flex-direction:column;gap:14px}
 .jgrid-wrap{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink);overflow-x:auto}
@@ -211,7 +215,7 @@ table.ft tr.in td.f{color:var(--green)}
 @media (max-width:760px){.fk{grid-template-columns:minmax(0,1fr)}}
 
 /* nav */
-.bar{display:flex;align-items:center;gap:12px;padding-block:8px calc(8px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-top:3px solid var(--ink);background:var(--paper)}
+.bar{font-size:18px;display:flex;align-items:center;gap:12px;padding-block:8px calc(8px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-top:3px solid var(--ink);background:var(--paper)}
 .bar .btn{padding:.2em .7em;box-shadow:3px 3px 0 var(--ink)}
 .bar .btn[disabled]{opacity:.35;cursor:default}
 .navdots{display:flex;gap:5px;flex:1;min-width:0;overflow:hidden;justify-content:center;flex-wrap:wrap}
@@ -605,6 +609,7 @@ table.ft tr.in td.f{color:var(--green)}
 <nav class="bar" aria-label="Nawigacja slajdów">
  <button class="btn" type="button" id="prev" aria-label="Poprzedni slajd">←</button>
  <div class="navdots" id="navdots"></div>
+ <button class="btn" type="button" id="fsDown" aria-label="Mniejsza czcionka">A−</button><button class="btn" type="button" id="fsUp" aria-label="Większa czcionka">A+</button>
  <span class="count" id="count"></span>
  <button class="btn" type="button" id="next" aria-label="Następny slajd">→</button>
 </nav>
@@ -618,6 +623,17 @@ const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},se
 const dots=$('#navdots');
 slides.forEach((s,i)=>{const b=document.createElement('button');b.className='navdot';b.type='button';b.title=(i+1)+'. '+s.dataset.title;b.setAttribute('aria-label',b.title);b.onclick=()=>go(i);dots.appendChild(b)});
 const seen=new Set();
+/* fit: shrink a slide that is taller than the screen, so nothing hides below the fold */
+function fit(s){const inner=s.querySelector('.inner');if(!inner)return;inner.style.zoom='';
+  if(document.documentElement.classList.contains('static'))return;
+  const cs=getComputedStyle(s);const avail=s.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  const h=inner.scrollHeight; if(h>avail+2 && window.innerWidth>760){inner.style.zoom=Math.max(.72,avail/h)}}
+let fs=1;try{fs=parseFloat(localStorage.getItem('jamovi1-fs'))||1}catch(e){}
+function setFs(v){fs=Math.min(1.5,Math.max(.7,Math.round(v*100)/100));document.documentElement.style.setProperty('--fs',fs);try{localStorage.setItem('jamovi1-fs',fs)}catch(e){};fit(slides[cur])}
+setFs(fs);
+$('#fsUp').onclick=()=>setFs(fs+.1);$('#fsDown').onclick=()=>setFs(fs-.1);
+let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>fit(slides[cur]),120)});
+document.fonts&&document.fonts.ready.then(()=>fit(slides[cur]));
 function go(i,fromHash){
   i=Math.max(0,Math.min(N-1,i)); const dir=i<cur;
   slides.forEach((s,k)=>{s.classList.toggle('on',k===i);s.classList.toggle('back',k!==i&&k<i)});
@@ -626,7 +642,7 @@ function go(i,fromHash){
   $('#count').textContent=(i+1)+' / '+N;
   $('#progress').style.width=((i+1)/N*100)+'%';
   $('#prev').disabled=i===0; $('#next').disabled=i===N-1;
-  slides[i].scrollTop=0;
+  slides[i].scrollTop=0; fit(slides[i]);
   if(!fromHash){const h='#s'+(i+1); if(location.hash!==h){try{history.replaceState(null,'',h)}catch(e){location.hash=h}}}
 }
 function fromHash(){const m=/^#s(\d+)$/.exec(location.hash); return m?parseInt(m[1],10)-1:0}
