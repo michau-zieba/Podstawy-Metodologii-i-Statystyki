@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pulpit statystyk opisowych</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Caveat+Brush&display=swap">
+<style>
+/* Layout: notebook-style pulpit — sticky data panel on the left, live stat tiles + charts on the right, practice below. Single light look, same as the class decks. */
+:root{
+  --paper:#ffffff; --ink:#111111; --soft:#5d5a63; --line:#e6e3ea;
+  --red:#e3201b; --yellow:#ffc21a; --blue:#1f78c8; --green:#22a447;
+  --yellowBg:#fff6d6; --blueBg:#e6f1fb; --redBg:#fde6e5; --greenBg:#e5f6ea;
+  --f-display:"Titan One","Arial Black",Impact,sans-serif;
+  --f-body:"Courier Prime","Courier New",Courier,monospace;
+  --f-hand:"Caveat Brush","Comic Sans MS",cursive;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;margin:0}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;line-height:1.1}
+h1{font-size:clamp(1.9rem,4.5vw,3rem)}
+h2{font-size:clamp(1.35rem,2.6vw,1.8rem)}
+h3{font-size:1.1rem}
+p{margin:0}
+.eyebrow{font-weight:700;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.hand{font-family:var(--f-hand);font-size:1.5em;line-height:1}
+.tn{font-variant-numeric:tabular-nums}
+button,input,textarea,select{font:inherit;color:inherit}
+.btn{background:var(--paper);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);padding:.3em .75em;font-weight:700;cursor:pointer;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.btn.sel{background:var(--ink);color:var(--paper)}
+.btn:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* header */
+header.top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:end;border-bottom:6px solid var(--ink);padding-bottom:18px}
+header.top .credit{text-align:right;font-size:.9rem}
+header.top .credit b{display:inline-block;border-bottom:5px solid var(--yellow);line-height:1.1}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.9rem}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{width:14px;height:14px;border:2px solid var(--ink);display:inline-block}
+
+/* main grid */
+.main{display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr);gap:24px;align-items:start}
+.panel{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--yellow);padding:16px;display:flex;flex-direction:column;gap:12px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);background:var(--paper)}
+.vals-head{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;font-weight:700;color:var(--soft)}
+.vals{display:flex;flex-wrap:wrap;gap:4px;max-height:240px;overflow-y:auto;background:var(--yellowBg);border:2px solid var(--ink);padding:8px}
+.vals span{border:1.5px solid var(--ink);background:var(--paper);padding:0 .35em;font-size:.85rem;cursor:pointer}
+.vals span.out{background:var(--ink);color:var(--paper)}
+.vals span.on{background:var(--red);color:var(--paper);border-color:var(--red)}
+.panel .hint{font-size:.82rem;color:var(--soft)}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets .btn{font-size:.8rem;padding:.15em .5em;box-shadow:2px 2px 0 var(--ink)}
+.err{color:var(--red);font-weight:700;font-size:.85rem}
+.add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+.add input{border:2px solid var(--ink);padding:.25em .5em;min-width:0}
+
+.right{display:flex;flex-direction:column;gap:22px;min-width:0}
+.groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.group{border:3px solid var(--ink);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.group.c{box-shadow:6px 6px 0 var(--yellow)} .group.d{box-shadow:6px 6px 0 var(--blue)} .group.s{box-shadow:6px 6px 0 var(--red)}
+.group h3 .hand{font-size:1.2em;margin-right:4px}
+.group.c h3 .hand{color:#c78f00}.group.d h3 .hand{color:var(--blue)}.group.s h3 .hand{color:var(--red)}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tile{border-top:2px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:0;cursor:help;min-width:0}
+.tile .k{font-size:.78rem;color:var(--soft);font-weight:700}
+.tile .v{font-family:var(--f-display);font-size:1.45rem;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile .v.small{font-size:1.05rem}
+.tile.full{grid-column:1/-1}
+.tile[aria-expanded="true"] .k{color:var(--ink)}
+.tipbox{font-size:.85rem;background:var(--blueBg);border-left:5px solid var(--blue);padding:8px 10px}
+.pill{display:inline-block;border:2px solid currentColor;padding:0 .45em;font-weight:700;font-size:.8rem;line-height:1.5}
+.pill.g{color:#16773a;background:var(--greenBg)}.pill.y{color:#8a5f00;background:var(--yellowBg)}.pill.r{color:#b3150f;background:var(--redBg)}.pill.b{color:#145a96;background:var(--blueBg)}
+
+.charts{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+.card{border:3px solid var(--ink);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card svg{width:100%;height:auto;display:block}
+.card svg text{font-family:var(--f-body);fill:var(--ink)}
+.toggles{display:flex;flex-wrap:wrap;gap:12px;font-size:.85rem;font-weight:700}
+.toggles label{display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+
+.readout{border:3px solid var(--ink);background:var(--yellowBg);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.readout .apa{background:var(--paper);border:2px dashed var(--ink);padding:8px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.readout .apa .btn{font-size:.8rem;padding:.1em .5em;box-shadow:2px 2px 0 var(--ink)}
+
+/* practice */
+.section{display:flex;flex-direction:column;gap:14px}
+.section > header{display:flex;flex-direction:column;gap:4px}
+.lab{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:20px;align-items:start}
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.tasks button{width:100%;text-align:left;border:3px solid var(--ink);background:var(--paper);padding:8px 10px;cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center}
+.tasks button:hover{background:var(--yellowBg)}
+.tasks button[aria-pressed="true"]{box-shadow:5px 5px 0 var(--red);background:var(--yellowBg)}
+.tasks button.done{background:var(--greenBg)}
+.tasks .n{font-family:var(--f-display);font-size:1.3rem;width:1.6em;text-align:center}
+.tasks button.done .n{color:#16773a}
+.tasks .tt{font-weight:700;font-size:.92rem;line-height:1.25}
+.labcard{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--red);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.labcard svg{width:100%;height:auto;display:block}
+.labcard svg text{font-family:var(--f-body);fill:var(--ink)}
+.taskbox{background:var(--yellowBg);border:2px solid var(--ink);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.taskbox.ok{background:var(--greenBg)}
+.conds{display:flex;flex-wrap:wrap;gap:6px}
+.sliders{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 20px}
+.sliders label{display:flex;flex-direction:column;gap:2px;font-weight:700;font-size:.9rem}
+.sliders small{font-weight:400;color:var(--soft)}
+.sliders input{width:100%;accent-color:var(--red)}
+.labstats{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.95rem}
+@media (max-width:820px){.lab{grid-template-columns:1fr}.sliders{grid-template-columns:1fr}}
+.ch{border:3px solid var(--ink);padding:10px 12px;display:flex;flex-direction:column;gap:6px;transition:background .25s}
+.ch.done{background:var(--greenBg)}
+.ch .st{font-weight:700;font-size:.85rem}
+.ch.done .st{color:#16773a}
+.ch .st::before{content:"☐ "}
+.ch.done .st::before{content:"☑ "}
+.score{font-family:var(--f-display);font-size:1.4rem}
+
+.cheat-wrap{overflow-x:auto;border:3px solid var(--ink)}
+table.cheat{border-collapse:collapse;width:100%;min-width:720px;font-size:.92rem}
+table.cheat th{background:var(--ink);color:var(--paper);text-align:left;padding:.45em .7em}
+table.cheat td{padding:.45em .7em;border-top:2px solid var(--line);vertical-align:top}
+table.cheat td:first-child{font-weight:700;white-space:nowrap}
+table.cheat tr.sec td{background:var(--yellowBg);font-family:var(--f-display);font-weight:400;border-top:3px solid var(--ink)}
+
+.quiz{display:flex;flex-direction:column;gap:12px}
+.q{border-bottom:2px solid var(--line);padding-bottom:10px;display:flex;flex-direction:column;gap:6px}
+.q .opts{display:flex;flex-wrap:wrap;gap:6px}
+.q .opts .btn{font-size:.85rem;padding:.15em .55em;box-shadow:2px 2px 0 var(--ink)}
+.q .opts .btn.ok{background:var(--green);border-color:var(--green);color:var(--paper)}
+.q .opts .btn.no{background:var(--red);border-color:var(--red);color:var(--paper)}
+.q .why{font-size:.85rem;color:var(--soft)}
+
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.jam{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--blue);padding:14px;display:flex;flex-direction:column;gap:8px}
+.path{font-weight:700;background:var(--blueBg);padding:.2em .5em;display:inline-block}
+footer{border-top:6px solid var(--ink);padding-top:12px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:.85rem;color:var(--soft)}
+
+@media (max-width:1050px){.groups{grid-template-columns:1fr}.charts{grid-template-columns:1fr}}
+@media (max-width:820px){.main{grid-template-columns:1fr}.panel{position:static}.two{grid-template-columns:1fr}header.top{grid-template-columns:1fr}header.top .credit{text-align:left}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="eyebrow">Podstawy metodologii i statystyki · zajęcia 2</div>
+    <h1>Pulpit statystyk opisowych</h1>
+    <p style="max-width:62ch">Wybierz zestaw danych, a pulpit pokaże jego statystyki, histogram i wykres skrzynkowy oraz podpowie, jak je opisać. Niżej, w laboratorium, sam(a) ustawiasz kształt rozkładu suwakami.</p>
+    <div class="legend"><span><i style="background:var(--yellow)"></i>tendencja centralna</span><span><i style="background:var(--blue)"></i>rozproszenie</span><span><i style="background:var(--red)"></i>kształt rozkładu</span></div>
+  </div>
+  <div class="credit"><b>mgr Michał Zięba</b><br>USWPS Poznań – materiały dydaktyczne</div>
+</header>
+
+<div class="main">
+  <aside class="panel" aria-label="Dane">
+    <h2>Dane do analizy</h2>
+    <p class="hint">Wybierz zestaw danych. Statystyki i wykresy obok zmienią się od razu.</p>
+    <div class="presets" id="presets"></div>
+    <p id="presetNote" style="font-size:.9rem"></p>
+    <div class="vals-head"><span class="k">Wyniki (uszeregowane)</span><span class="k" id="valsN"></span></div>
+    <div class="vals tn" id="vals" aria-label="Wyniki z wybranego zestawu"></div>
+    <p class="hint">Najedź na wynik (lub go kliknij), żeby zobaczyć, gdzie leży na wykresach.</p>
+  </aside>
+
+  <div class="right">
+    <div class="groups">
+      <section class="group c" aria-label="Tendencja centralna">
+        <h3><span class="hand">●</span>Tendencja centralna</h3>
+        <div class="tiles">
+          <div class="tile" data-t="M"><span class="k">Średnia (M)</span><span class="v tn" id="vM"></span></div>
+          <div class="tile" data-t="Me"><span class="k">Mediana (Me)</span><span class="v tn" id="vMe"></span></div>
+          <div class="tile full" data-t="Mo"><span class="k">Modalna (Mo)</span><span class="v tn small" id="vMo"></span></div>
+        </div>
+      </section>
+      <section class="group d" aria-label="Rozproszenie">
+        <h3><span class="hand">↔</span>Rozproszenie</h3>
+        <div class="tiles">
+          <div class="tile" data-t="SD"><span class="k">Odch. std. (SD)</span><span class="v tn" id="vSD"></span></div>
+          <div class="tile" data-t="R"><span class="k">Rozstęp (R)</span><span class="v tn" id="vR"></span></div>
+          <div class="tile" data-t="mm"><span class="k">Min – max</span><span class="v tn small" id="vMM"></span></div>
+          <div class="tile" data-t="Q"><span class="k">Q1 · Q3 · IQR</span><span class="v tn small" id="vQ"></span></div>
+        </div>
+      </section>
+      <section class="group s" aria-label="Kształt rozkładu">
+        <h3><span class="hand">∿</span>Kształt rozkładu</h3>
+        <div class="tiles">
+          <div class="tile" data-t="SKE"><span class="k">Skośność (SKE)</span><span class="v tn" id="vSKE"></span><span id="pSKE"></span></div>
+          <div class="tile" data-t="K"><span class="k">Kurtoza (K)</span><span class="v tn" id="vK"></span><span id="pK"></span></div>
+          <div class="tile full" data-t="N"><span class="k">Liczba wyników (N)</span><span class="v tn small" id="vN"></span></div>
+        </div>
+      </section>
+    </div>
+    <div class="tipbox" id="tip"><b>Wskazówka:</b> kliknij kafelek ze statystyką, a tu pojawi się jej wyjaśnienie z zajęć.</div>
+
+    <div class="charts">
+      <div class="card">
+        <h3>Histogram</h3>
+        <div class="toggles">
+          <label><input type="checkbox" id="tM" checked> średnia</label>
+          <label><input type="checkbox" id="tMe" checked> mediana</label>
+          <label><input type="checkbox" id="tSD" checked> ±1 SD</label>
+        </div>
+        <svg id="hist" viewBox="0 0 560 300" role="img" aria-label="Histogram wpisanych danych"></svg>
+      </div>
+      <div class="card">
+        <h3>Wykres skrzynkowy</h3>
+        <div class="toggles"><label><input type="checkbox" id="tLim"> pokaż limity wartości odstających</label></div>
+        <svg id="box" viewBox="0 0 400 300" role="img" aria-label="Wykres skrzynkowy wpisanych danych"></svg>
+        <p class="hint" id="outTxt" style="font-size:.85rem"></p>
+      </div>
+    </div>
+
+    <div class="readout" aria-live="polite">
+      <h3>Jak to opisać?</h3>
+      <p id="desc"></p>
+      <div class="apa"><span id="apa" class="tn"></span><button class="btn" type="button" id="copy">Kopiuj</button></div>
+    </div>
+  </div>
+</div>
+
+<section class="section" aria-labelledby="labH">
+  <header><div class="eyebrow">Laboratorium rozkładu · zadania</div><h2 id="labH">Ustaw rozkład suwakami</h2>
+  <p style="max-width:75ch">Wybierz zadanie z listy i przesuwaj suwaki. Histogram pokazuje 400 wyników, a przerywana linia to rozkład normalny o tej samej średniej i SD – porównuj z nią kształt. Zielone pola na skalach to cel zadania.</p></header>
+  <div class="lab">
+    <ol class="tasks" id="tasks"></ol>
+    <div class="labcard">
+      <div class="taskbox" id="taskbox" aria-live="polite"></div>
+      <div class="sliders">
+        <label for="sM"><span>Średnia <b id="oM" class="tn"></b></span><input type="range" id="sM" min="10" max="120" step="0.5" value="50"></label>
+        <label for="sSD"><span>Odchylenie standardowe <b id="oSD" class="tn"></b></span><input type="range" id="sSD" min="2" max="25" step="0.25" value="10"></label>
+        <label for="sSk"><span>Asymetria <small>← ogon w lewo · ogon w prawo →</small></span><input type="range" id="sSk" min="-1" max="1" step="0.01" value="0"></label>
+        <label for="sKu"><span>Ogony <small>← spłaszczony · szpiczasty →</small></span><input type="range" id="sKu" min="-1" max="1" step="0.01" value="0"></label>
+      </div>
+      <svg id="labHist" viewBox="0 0 640 280" role="img" aria-label="Histogram rozkładu ustawionego suwakami"></svg>
+      <svg id="gauges" viewBox="0 0 640 150" role="img" aria-label="Skale skośności i kurtozy z zaznaczonym celem zadania"></svg>
+      <div class="labstats tn" id="labStats"></div>
+      <div class="row"><button class="btn" type="button" id="labReset">Ustaw rozkład normalny</button><span class="score" id="chScore"></span><span class="hint">zadań zaliczonych</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="chtH">
+  <header><div class="eyebrow">Ściąga</div><h2 id="chtH">Wszystkie statystyki w jednym miejscu</h2></header>
+  <div class="cheat-wrap"><table class="cheat">
+    <thead><tr><th>Statystyka</th><th>Co mówi?</th><th>Przykład z zajęć</th><th>Nazwa w Jamovi</th></tr></thead>
+    <tbody>
+      <tr class="sec"><td colspan="4">Tendencja centralna</td></tr>
+      <tr><td><i>M</i> – średnia</td><td>Suma wszystkich wartości podzielona przez ich liczbę.</td><td>Wzrost 11 osób: 1917 / 11 = <b>174,27 cm</b></td><td>Średnia</td></tr>
+      <tr><td><i>Me</i> – mediana</td><td>Wartość środkowa po uszeregowaniu wyników.</td><td>Wzrost 11 osób: 6. wartość = <b>175 cm</b></td><td>Mediana</td></tr>
+      <tr><td><i>Mo</i> – modalna</td><td>Wartość, która występuje najczęściej (dominanta).</td><td>4 różowe, 2 pomarańczowe, 1 niebieski → <b>różowy</b></td><td>Modalna</td></tr>
+      <tr class="sec"><td colspan="4">Rozproszenie</td></tr>
+      <tr><td><i>SD</i></td><td>Jak bardzo wyniki typowo różnią się od średniej. Małe <i>SD</i> – wyniki podobne do średniej.</td><td>Grupa A: <i>SD</i> = 2,62; grupa B: <i>SD</i> = 16,48</td><td>Odchylenie standardowe</td></tr>
+      <tr><td><i>R</i> – rozstęp</td><td>Różnica między największym a najmniejszym wynikiem.</td><td>SWLS: 33 − 5 = <b>28</b></td><td>Rozstęp, Minimum, Maksimum</td></tr>
+      <tr><td>Q1, Q3, IQR</td><td>Q1: 25% osób ma wynik niższy. Q3: 75% osób ma wynik niższy. IQR = Q3 − Q1.</td><td>SWLS: Q1 = 9, Q3 = 29</td><td>25-ty i 75-ty percentyl, IQR</td></tr>
+      <tr class="sec"><td colspan="4">Kształt rozkładu</td></tr>
+      <tr><td><i>SKE</i> – skośność</td><td><i>SKE</i> &gt; 0: prawoskośny (ogon po prawej). <i>SKE</i> &lt; 0: lewoskośny (ogon po lewej). Normalny: 0.</td><td>ASHS: <i>SKE</i> = −0,77 → lewoskośny</td><td>Skośność</td></tr>
+      <tr><td><i>K</i> – kurtoza</td><td><i>K</i> &gt; 0: szpiczasty (leptokurtyczny). <i>K</i> &lt; 0: wypłaszczony (platykurtyczny). Normalny: 0.</td><td>ASHS: <i>K</i> = 0,62 → leptokurtyczny</td><td>Kurtoza</td></tr>
+      <tr class="sec"><td colspan="4">Wartości odstające</td></tr>
+      <tr><td>Limity</td><td>Dolny: Q1 − 1,5 × IQR. Górny: Q3 + 1,5 × IQR. Wynik poza limitem to kropka na wykresie skrzynkowym.</td><td>Mężczyźni ASHS: limity 22 i 54, wynik 16 → odstający</td><td>Wykres pudełkowy</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<div class="two">
+  <section class="section" aria-labelledby="qH">
+    <header><div class="eyebrow">Sprawdź się</div><h2 id="qH">Szybki quiz</h2></header>
+    <div class="quiz" id="quiz"></div>
+    <div class="row"><span class="score" id="qScore"></span><button class="btn" type="button" id="qReset">Od nowa</button></div>
+  </section>
+  <section class="section" aria-labelledby="jH">
+    <header><div class="eyebrow">W programie</div><h2 id="jH">Jak to zrobić w Jamovi</h2></header>
+    <div class="jam">
+      <h3>Statystyki</h3>
+      <span class="path">Eksploracja → Statystyki opisowe → Statystyki</span>
+      <p>Zaznacz: N, Braki danych, Średnia, Mediana, Modalna, Odchylenie standardowe, Rozstęp, Minimum, Maksimum, Skośność, Kurtoza, Kwartyle.</p>
+    </div>
+    <div class="jam">
+      <h3>Wykresy</h3>
+      <span class="path">Eksploracja → Statystyki opisowe → Wykresy</span>
+      <p>Zaznacz <b>Histogram</b> oraz <b>Wykres pudełkowy</b>. Aby porównać grupy (np. kobiety i mężczyzn), przenieś zmienną grupującą do pola <b>Podziel według</b>.</p>
+    </div>
+    <div class="jam">
+      <h3>Pamiętaj w pracy</h3>
+      <p>Jamovi pokazuje kropkę dziesiętną (37.14). W tekście po polsku piszesz przecinek i kursywę: <i>M</i> = 37,14; <i>SD</i> = 6,25.</p>
+    </div>
+  </section>
+</div>
+
+<footer><span>mgr Michał Zięba · USWPS Poznań – materiały dydaktyczne</span><span>Podstawy metodologii i statystyki · zajęcia 2: statystyki opisowe i wizualizacja danych</span></footer>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const NS='http://www.w3.org/2000/svg';
+function el(svg,tag,a,txt){const e=document.createElementNS(NS,tag);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;svg.appendChild(e);return e}
+const pl=(x,d=2)=>Number.isFinite(x)?(Math.round(x*10**d)/10**d).toFixed(d).replace('.',',').replace('-','−'):'–';
+const plv=x=>{const r=Math.round(x*100)/100;return Number.isInteger(r)?String(r).replace('-','−'):pl(r)};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* --- data presets --- */
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const r1=rng(1),r2=rng(21),r3=rng(5);
+const ashs=Array.from({length:60},()=>{const z=gauss(r1);return Math.max(16,Math.min(48,Math.round(39+5.5*z-(z<0?0.9*z*z:0))))});
+const czas=Array.from({length:40},()=>Math.round(320+(-Math.log(r2()))*90));
+const wzrostN=Array.from({length:50},()=>Math.round(170+10*gauss(r3)));
+const PRESETS=[
+ {k:'wzrost',n:'Wzrost 11 osób',d:[156,161,163,166,171,175,179,182,184,189,191],note:'Wzrost 11 osób ze slajdu o medianie: Me = 175 cm.'},
+ {k:'swls',n:'SWLS',d:[5,8,9,12,16,21,23,26,29,32,33],note:'Satysfakcja z życia (SWLS) ze slajdu o kwartylach: Q1 = 9, Q3 = 29, R = 28.'},
+ {k:'normal',n:'Wzrost 50 osób',d:wzrostN,note:'Dane przykładowe zbliżone do rozkładu normalnego (M ≈ 170, SD ≈ 10).'},
+ {k:'ashs',n:'Nadzieja (lewoskośny)',d:ashs,note:'Dane przykładowe podobne do ASHS z zajęć: lekko lewoskośne i lekko szpiczaste.'},
+ {k:'czas',n:'Czas reakcji (prawoskośny)',d:czas,note:'Dane przykładowe: czas reakcji w ms. Typowy rozkład prawoskośny.'}];
+let current='swls',data=[];
+const box=$('#presets');
+PRESETS.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=p.n;b.dataset.k=p.k;b.onclick=()=>load(p.k);box.appendChild(b)});
+function load(k){const p=PRESETS.find(x=>x.k===k);current=k;data=[...p.d];$('#presetNote').textContent=p.note;
+  $$('#presets .btn').forEach(b=>b.classList.toggle('sel',b.dataset.k===k));update()}
+
+/* --- parsing & stats --- */
+function q7(a,p){const n=a.length,h=(n+1)*p;if(h<=1)return a[0];if(h>=n)return a[n-1];const l=Math.floor(h);return a[l-1]+(h-l)*(a[l]-a[l-1])}
+function stats(x){const n=x.length,s=[...x].sort((a,b)=>a-b),M=x.reduce((a,b)=>a+b,0)/n;
+  const m2=x.reduce((a,v)=>a+(v-M)**2,0)/n,m3=x.reduce((a,v)=>a+(v-M)**3,0)/n,m4=x.reduce((a,v)=>a+(v-M)**4,0)/n;
+  const SD=n>1?Math.sqrt(m2*n/(n-1)):NaN;
+  const g1=m2>0?m3/m2**1.5:NaN,g2=m2>0?m4/m2**2-3:NaN;
+  const SKE=n>2?g1*Math.sqrt(n*(n-1))/(n-2):NaN,K=n>3?((n+1)*g2+6)*(n-1)/((n-2)*(n-3)):NaN;
+  const cnt=new Map();x.forEach(v=>cnt.set(v,(cnt.get(v)||0)+1));const mx=Math.max(...cnt.values());
+  const modes=mx>1?[...cnt].filter(([,c])=>c===mx).map(([v])=>v).sort((a,b)=>a-b):[];
+  const Q1=q7(s,.25),Me=q7(s,.5),Q3=q7(s,.75),IQR=Q3-Q1,lo=Q1-1.5*IQR,hi=Q3+1.5*IQR;
+  return {n,s,M,SD,SKE,K,modes,modeCount:mx,Me,Q1,Q3,IQR,lo,hi,min:s[0],max:s[n-1],R:s[n-1]-s[0],out:s.filter(v=>v<lo||v>hi)}}
+function skeLab(v){if(!Number.isFinite(v))return['','b'];const a=Math.abs(v);return a<.5?['symetryczny','g']:[v>0?'prawoskośny':'lewoskośny',a<1?'y':'r']}
+function kLab(v){if(!Number.isFinite(v))return['','b'];const a=Math.abs(v);return a<.5?['mezokurtyczny','g']:[v>0?'szpiczasty':'spłaszczony',a<1?'y':'r']}
+
+/* --- tiles & explanations --- */
+const TIPS={
+ M:'<b>Średnia</b> to suma wszystkich wartości podzielona przez ich liczbę. Jest wrażliwa na wartości odstające: jeden bardzo wysoki wynik potrafi ją mocno przesunąć.',
+ Me:'<b>Mediana</b> to wartość środkowa po uszeregowaniu wyników od najmniejszego. Połowa osób ma wynik niższy, połowa wyższy. Przy parzystej liczbie wyników to średnia z dwóch środkowych.',
+ Mo:'<b>Modalna</b> (dominanta) to wartość, która występuje najczęściej. Może ich być kilka – Jamovi pokazuje wtedy pierwszą i dodaje przypis „a”.',
+ SD:'<b>Odchylenie standardowe</b> mówi, jak bardzo wyniki typowo różnią się od średniej. Małe SD: większość wyników jest podobna do średniej. Duże SD: próba jest silnie zróżnicowana.',
+ R:'<b>Rozstęp</b> to różnica między największym a najmniejszym wynikiem (max − min). Zależy tylko od dwóch skrajnych osób.',
+ mm:'<b>Minimum i maksimum</b> to najmniejszy i największy wynik. Warto je sprawdzać, bo pomagają wyłapać literówki w bazie (np. 55 na skali 1–5).',
+ Q:'<b>Kwartyle:</b> Q1 – 25% osób ma wynik niższy; Q3 – 75% osób ma wynik niższy. <b>IQR</b> = Q3 − Q1 to rozstęp międzykwartylowy, czyli wysokość pudełka na wykresie skrzynkowym. Programy liczą kwartyle nieco różnymi metodami, więc Jamovi może czasem podać trochę inną wartość.',
+ SKE:'<b>Skośność:</b> SKE &gt; 0 – rozkład prawoskośny (długi ogon po prawej), SKE &lt; 0 – lewoskośny (długi ogon po lewej). W idealnym rozkładzie normalnym skośność wynosi 0.',
+ K:'<b>Kurtoza:</b> K &gt; 0 – rozkład bardziej szpiczasty (leptokurtyczny), K &lt; 0 – bardziej wypłaszczony (platykurtyczny). W idealnym rozkładzie normalnym kurtoza wynosi 0.',
+ N:'<b>N</b> to liczba wyników. Skośność wymaga co najmniej 3 wyników, a kurtoza co najmniej 4. Przy małych próbach obie są bardzo niestabilne.'};
+$$('.tile').forEach(t=>{t.tabIndex=0;t.setAttribute('role','button');t.setAttribute('aria-expanded','false');
+  const f=()=>{$$('.tile').forEach(x=>x.setAttribute('aria-expanded','false'));t.setAttribute('aria-expanded','true');$('#tip').innerHTML=TIPS[t.dataset.t]};
+  t.onclick=f;t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}}});
+
+/* --- charts --- */
+function niceStep(range,target){const raw=range/target,p=10**Math.floor(Math.log10(raw)),m=raw/p;return (m<1.5?1:m<3?2:m<7?5:10)*p}
+function drawHist(S){const svg=$('#hist');svg.innerHTML='';const W=560,H=300,L=46,R=14,T=16,B=46;
+  const k=Math.max(5,Math.min(14,Math.ceil(Math.log2(S.n)+1)));let w=niceStep(Math.max(S.R,1),k);
+  const allInt=S.s.every(Number.isInteger);if(allInt)w=Math.max(1,Math.round(w));
+  let a=Math.floor(S.min/w)*w,b=Math.floor(S.max/w)*w+w;
+  const pad=Math.max(S.SD||0,w);const xa=Math.min(a,S.M-pad*1.05),xb=Math.max(b,S.M+pad*1.05);
+  const nb=Math.round((b-a)/w),cnt=Array(nb).fill(0);S.s.forEach(v=>{cnt[Math.min(nb-1,Math.floor((v-a)/w+1e-9))]++});
+  const ymax=Math.max(...cnt),ys=niceStep(ymax,4),ytop=Math.max(ys,Math.ceil(ymax/ys)*ys);
+  const sx=v=>L+(v-xa)/(xb-xa)*(W-L-R),sy=c=>H-B-c/ytop*(H-T-B);
+  for(let c=0;c<=ytop;c+=ys){el(svg,'line',{x1:L,x2:W-R,y1:sy(c),y2:sy(c),stroke:css('--line'),'stroke-width':1});el(svg,'text',{x:L-8,y:sy(c)+5,'text-anchor':'end','font-size':13},c)}
+  if($('#tSD').checked&&Number.isFinite(S.SD))el(svg,'rect',{x:sx(S.M-S.SD),y:T,width:sx(S.M+S.SD)-sx(S.M-S.SD),height:H-B-T,fill:css('--yellow'),opacity:.35});
+  cnt.forEach((c,i)=>{if(c)el(svg,'rect',{x:sx(a+i*w)+1,y:sy(c),width:Math.max(1,sx(a+(i+1)*w)-sx(a+i*w)-2),height:sy(0)-sy(c),fill:css('--blue'),stroke:css('--ink'),'stroke-width':2})});
+  el(svg,'line',{x1:L,x2:W-R,y1:sy(0),y2:sy(0),stroke:css('--ink'),'stroke-width':3});
+  const xs=niceStep(xb-xa,6);for(let v=Math.ceil(xa/xs)*xs;v<=xb+1e-9;v+=xs){el(svg,'line',{x1:sx(v),x2:sx(v),y1:sy(0),y2:sy(0)+6,stroke:css('--ink'),'stroke-width':2});el(svg,'text',{x:sx(v),y:sy(0)+22,'text-anchor':'middle','font-size':13},plv(v))}
+  el(svg,'text',{x:(L+W-R)/2,y:H-6,'text-anchor':'middle','font-size':13,fill:css('--soft')},'wynik');
+  el(svg,'text',{x:14,y:(T+H-B)/2,'text-anchor':'middle','font-size':13,fill:css('--soft'),transform:`rotate(-90 14 ${(T+H-B)/2})`},'liczba osób');
+  if(hl!=null){const i=Math.min(nb-1,Math.floor((hl-a)/w+1e-9));el(svg,'rect',{x:sx(a+i*w)+1,y:T,width:Math.max(1,sx(a+(i+1)*w)-sx(a+i*w)-2),height:sy(0)-T,fill:'none',stroke:css('--red'),'stroke-width':3,'stroke-dasharray':'4 3'})}
+  const lines=[];if($('#tM').checked)lines.push([S.M,'M',css('--red')]);if($('#tMe').checked)lines.push([S.Me,'Me',css('--green')]);
+  lines.forEach(([v,t,c],i)=>{const left=lines.length===2&&((i===0&&S.M<S.Me)||(i===1&&S.Me<=S.M));
+    el(svg,'line',{x1:sx(v),x2:sx(v),y1:T,y2:sy(0),stroke:c,'stroke-width':3.5,'stroke-dasharray':'8 5'});
+    el(svg,'text',{x:sx(v)+(left?-6:6),y:T+14+i*16,'text-anchor':left?'end':'start','font-size':14,'font-weight':700,fill:c},t)})}
+function drawBox(S){const svg=$('#box');svg.innerHTML='';const W=400,H=300,L=56,R=20,T=18,B=24,cx=(L+W-R)/2,bw=110;
+  const showLim=$('#tLim').checked;let a=Math.min(S.min,showLim?S.lo:S.min),b=Math.max(S.max,showLim?S.hi:S.max);if(a===b){a-=1;b+=1}
+  const ys=niceStep(b-a,5);a=Math.floor(a/ys)*ys;b=Math.ceil(b/ys)*ys;const sy=v=>H-B-(v-a)/(b-a)*(H-T-B);
+  for(let v=a;v<=b+1e-9;v+=ys){el(svg,'line',{x1:L,x2:W-R,y1:sy(v),y2:sy(v),stroke:css('--line'),'stroke-width':1});el(svg,'text',{x:L-8,y:sy(v)+5,'text-anchor':'end','font-size':13},plv(v))}
+  const inl=S.s.filter(v=>v>=S.lo&&v<=S.hi),wl=Math.min(...inl),wh=Math.max(...inl);
+  el(svg,'line',{x1:cx,x2:cx,y1:sy(wh),y2:sy(S.Q3),stroke:css('--ink'),'stroke-width':3});el(svg,'line',{x1:cx,x2:cx,y1:sy(S.Q1),y2:sy(wl),stroke:css('--ink'),'stroke-width':3});
+  [wl,wh].forEach(v=>el(svg,'line',{x1:cx-26,x2:cx+26,y1:sy(v),y2:sy(v),stroke:css('--ink'),'stroke-width':3}));
+  el(svg,'rect',{x:cx-bw/2,y:sy(S.Q3),width:bw,height:Math.max(2,sy(S.Q1)-sy(S.Q3)),fill:css('--blueBg'),stroke:css('--ink'),'stroke-width':3});
+  el(svg,'line',{x1:cx-bw/2,x2:cx+bw/2,y1:sy(S.Me),y2:sy(S.Me),stroke:css('--red'),'stroke-width':4});
+  const lab=[[S.Q3,'Q3'],[S.Me,'Me'],[S.Q1,'Q1']];let last=-99;lab.forEach(([v,t])=>{let y=sy(v)+5;if(y-last<15)y=last+15;last=y;el(svg,'text',{x:cx+bw/2+8,y,'font-size':13,'font-weight':700,fill:t==='Me'?css('--red'):css('--ink')},t+' = '+plv(v))});
+  if(showLim)[[S.lo,'dolny limit'],[S.hi,'górny limit']].forEach(([v,t])=>{el(svg,'line',{x1:L,x2:W-R,y1:sy(v),y2:sy(v),stroke:css('--red'),'stroke-width':2,'stroke-dasharray':'6 5'});el(svg,'text',{x:L+4,y:sy(v)-5,'font-size':12,fill:css('--red')},t+' = '+plv(v))});
+  S.out.forEach(v=>el(svg,'circle',{cx,cy:sy(v),r:6,fill:css('--ink')}));
+  if(hl!=null){el(svg,'line',{x1:cx-bw/2-24,x2:cx-bw/2-6,y1:sy(hl),y2:sy(hl),stroke:css('--red'),'stroke-width':4});el(svg,'text',{x:cx-bw/2-28,y:sy(hl)+5,'text-anchor':'end','font-size':13,'font-weight':700,fill:css('--red')},plv(hl))}
+  $('#outTxt').innerHTML=S.out.length?`Wartości odstające (kropki): <b>${S.out.map(plv).join(', ')}</b>. Limity: ${plv(S.lo)} i ${plv(S.hi)} (Q1 − 1,5 × IQR oraz Q3 + 1,5 × IQR).`:`Brak wartości odstających. Wszystkie wyniki mieszczą się między ${plv(S.lo)} a ${plv(S.hi)}.`}
+
+/* --- description --- */
+function describe(S){const [sl]=skeLab(S.SKE),[kl]=kLab(S.K);const parts=[];
+  parts.push(`Średni wynik wyniósł <b><i>M</i> = ${pl(S.M)}</b> przy odchyleniu standardowym <b><i>SD</i> = ${pl(S.SD)}</b>. Połowa osób uzyskała wynik niższy niż <b>${plv(S.Me)}</b> (mediana).`);
+  if(Number.isFinite(S.SKE)){const d=S.M-S.Me;
+    parts.push(sl==='symetryczny'?`Rozkład jest zbliżony do symetrycznego (<i>SKE</i> = ${pl(S.SKE)}).`:`Rozkład jest <b>${sl}</b> (<i>SKE</i> = ${pl(S.SKE)}): długi ogon jest po ${S.SKE>0?'prawej':'lewej'} stronie${Math.abs(d)>0.005?`, a średnia leży ${d<0?'poniżej':'powyżej'} mediany`:''}.`)}
+  if(Number.isFinite(S.K))parts.push(kl==='mezokurtyczny'?`Kurtoza jest bliska zeru (<i>K</i> = ${pl(S.K)}), więc rozkład nie jest wyraźnie ani szpiczasty, ani spłaszczony.`:`Rozkład jest <b>${kl==='szpiczasty'?'bardziej szpiczasty (leptokurtyczny)':'bardziej spłaszczony (platykurtyczny)'}</b> niż normalny (<i>K</i> = ${pl(S.K)}).`);
+  if(S.out.length)parts.push(`Na wykresie skrzynkowym widać ${S.out.length===1?'jedną wartość odstającą':S.out.length+' wartości odstające'}.`);
+  if(S.n<10)parts.push(`<span class="pill y">uwaga</span> Masz tylko ${S.n} wyników – skośność i kurtoza są przy tak małej próbie mało wiarygodne.`);
+  $('#desc').innerHTML=parts.join(' ');
+  $('#apa').innerHTML=`<i>M</i> = ${pl(S.M)}; <i>SD</i> = ${pl(S.SD)}; <i>Me</i> = ${plv(S.Me)}; <i>SKE</i> = ${pl(S.SKE)}; <i>K</i> = ${pl(S.K)}`}
+
+/* --- update --- */
+let lastS=null;
+let hl=null;
+function update(){const S=stats(data);lastS=S;hl=null;
+  $('#valsN').textContent='N = '+S.n;
+  $('#vals').innerHTML=S.s.map(v=>`<span tabindex="0" data-v="${v}" class="${S.out.includes(v)?'out':''}">${plv(v)}</span>`).join('');
+  $$('#vals span').forEach(s=>{const f=()=>{hl=+s.dataset.v;$$('#vals span').forEach(x=>x.classList.toggle('on',x===s));drawHist(lastS);drawBox(lastS)};s.onmouseenter=f;s.onfocus=f;s.onclick=f});
+  $('#vM').textContent=pl(S.M);$('#vMe').textContent=plv(S.Me);
+  $('#vMo').textContent=S.modes.length?S.modes.map(plv).join(' i ')+` (${S.modeCount}×)`:'brak – każda wartość występuje raz';
+  $('#vSD').textContent=pl(S.SD);$('#vR').textContent=plv(S.R);$('#vMM').textContent=plv(S.min)+' – '+plv(S.max);
+  $('#vQ').textContent=plv(S.Q1)+' · '+plv(S.Q3)+' · '+plv(S.IQR);
+  $('#vSKE').textContent=pl(S.SKE);$('#vK').textContent=pl(S.K);$('#vN').textContent=S.n;
+  const [sl,sc]=skeLab(S.SKE),[kl,kc]=kLab(S.K);$('#pSKE').innerHTML=sl?`<span class="pill ${sc}">${sl}</span>`:'';$('#pK').innerHTML=kl?`<span class="pill ${kc}">${kl}</span>`:'';
+  drawHist(S);drawBox(S);describe(S)}
+['#tM','#tMe','#tSD','#tLim'].forEach(s=>$(s).onchange=()=>lastS&&(drawHist(lastS),drawBox(lastS)));
+$('#copy').onclick=()=>{const t=$('#apa').textContent;const b=$('#copy');
+  const ok=()=>{b.textContent='Skopiowano';setTimeout(()=>b.textContent='Kopiuj',1500)};
+  try{navigator.clipboard.writeText(t).then(ok,()=>{selectApa();b.textContent='Zaznaczono – Ctrl+C'})}catch(e){selectApa()}};
+function selectApa(){const r=document.createRange();r.selectNodeContents($('#apa'));const s=getSelection();s.removeAllRanges();s.addRange(r)}
+
+/* --- quiz --- */
+const Q=[
+ ['Wynik, który w zbiorze występuje najczęściej, to…',['średnia','mediana','modalna'],2,'Modalna (dominanta) to najczęstsza wartość.'],
+ ['Odchylenie standardowe jest małe. To znaczy, że…',['wyniki są podobne do średniej','wyniki mocno się różnią','rozkład jest skośny'],0,'Małe SD: większość wyników leży blisko średniej.'],
+ ['Kurtoza wynosi K = 1,2. Rozkład jest…',['bardziej szpiczasty','bardziej wypłaszczony','symetryczny'],0,'K > 0 oznacza rozkład leptokurtyczny, czyli szpiczasty.'],
+ ['Skośność wynosi SKE = 0,9. Rozkład jest…',['lewoskośny','prawoskośny','normalny'],1,'SKE > 0: długi ogon po prawej stronie.'],
+ ['Q1 = 30, Q3 = 40. Ile wynosi IQR?',['10','35','70'],0,'IQR = Q3 − Q1 = 40 − 30 = 10.'],
+ ['Q1 = 34, Q3 = 42. Od jakiego wyniku w dół wynik będzie odstający?',['poniżej 22','poniżej 30','poniżej 34'],0,'Dolny limit: 34 − 1,5 × 8 = 22.'],
+ ['Do 10 wyników dopisujemy jeden bardzo wysoki. Co zmieni się bardziej?',['mediana','średnia','obie tak samo'],1,'Średnia jest wrażliwa na wartości odstające, mediana prawie się nie rusza.']];
+function buildQuiz(){const box=$('#quiz');box.innerHTML='';
+  Q.forEach(([q,o,a,why])=>{const d=document.createElement('div');d.className='q';d.innerHTML=`<b>${q}</b><div class="opts"></div><div class="why" hidden></div>`;const op=d.querySelector('.opts');
+    o.forEach((t,i)=>{const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=t;b.onclick=()=>{if(d.dataset.done)return;d.dataset.done=1;op.children[a].classList.add('ok');if(i!==a)b.classList.add('no');else d.dataset.ok=1;const w=d.querySelector('.why');w.hidden=false;w.textContent=why;score()};op.appendChild(b)});box.appendChild(d)});score()}
+function score(){$('#qScore').textContent=$$('#quiz .q[data-ok]').length+' / '+Q.length}
+$('#qReset').onclick=buildQuiz;buildQuiz();
+
+/* --- laboratorium rozkładu --- */
+function qn(p){const a=[-39.69683028665376,220.9460984245205,-275.9285104469687,138.357751867269,-30.66479806614716,2.506628277459239],b=[-54.47609879822406,161.5858368580409,-155.6989798598866,66.80131188771972,-13.28068155288572],c=[-0.007784894002430293,-0.3223964580411365,-2.400758277161838,-2.549732539343734,4.374664141464968,2.938163982698783],d=[0.007784695709041462,0.3224671290700398,2.445134137142996,3.754408661907416],lo=0.02425;let q,r;
+  if(p<lo){q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
+  if(p>1-lo){q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
+  q=p-.5;r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1)}
+const LN=400,LZ=Array.from({length:LN},(_,i)=>qn((i+.5)/LN));
+const TASKS=[
+ {t:'Rozkład normalny jak IQ',d:'Ustaw średnią 100 i SD 15, a skośność i kurtozę jak najbliżej zera.',M:[99.5,100.5],SD:[14.75,15.25],SKE:[-0.1,0.1],K:[-0.1,0.1]},
+ {t:'Rozkład lewoskośny',d:'Ustaw skośność między −1,0 a −0,6. Zobacz, po której stronie wyrasta długi ogon.',SKE:[-1,-0.6]},
+ {t:'Rozkład prawoskośny',d:'Tak wygląda np. czas reakcji. Ustaw skośność między 1 a 2.',SKE:[1,2]},
+ {t:'Rozkład szpiczasty',d:'Ustaw kurtozę między 1,5 a 3, ale zostaw rozkład symetryczny.',K:[1.5,3],SKE:[-0.2,0.2]},
+ {t:'Rozkład spłaszczony',d:'Ustaw kurtozę poniżej −0,5 przy symetrycznym rozkładzie.',K:[-2,-0.5],SKE:[-0.2,0.2]},
+ {t:'Średnia niższa od mediany',d:'Przy SD = 10 spraw, żeby średnia była co najmniej o 1,5 punktu niższa od mediany. Który suwak musisz ruszyć?',SD:[9.75,10.25],f:S=>S.Me-S.M>=1.5,fl:'Me − M ≥ 1,5'},
+ {t:'Odtwórz ASHS z zajęć',d:'Ustaw rozkład jak w przykładzie z zajęć: M = 37,14; SD = 6,25; SKE = −0,77; K = 0,62.',M:[36.5,37.5],SD:[6,6.5],SKE:[-0.87,-0.67],K:[0.47,0.77]}];
+let act=0;const done=new Set();
+const NAMES={M:'M',SD:'SD',SKE:'SKE',K:'K'};
+function labData(){const M=+$('#sM').value,SD=+$('#sSD').value,e=1.2*+$('#sSk').value,dl=Math.exp(-0.75*+$('#sKu').value);
+  const x=LZ.map(z=>Math.sinh((Math.asinh(z)+e)/dl));const m=x.reduce((a,b)=>a+b,0)/LN,s=Math.sqrt(x.reduce((a,v)=>a+(v-m)**2,0)/(LN-1));
+  return x.map(v=>M+SD*(v-m)/s)}
+function inR(v,r){return v>=r[0]-1e-9&&v<=r[1]+1e-9}
+function conds(S,T){const c=[];['M','SD','SKE','K'].forEach(k=>{if(T[k])c.push([`${NAMES[k]}: ${pl(T[k][0])} do ${pl(T[k][1])}`,inR(S[k],T[k])])});if(T.f)c.push([T.fl,T.f(S)]);return c}
+function drawLab(S){const svg=$('#labHist');svg.innerHTML='';const W=640,H=280,L=40,R=14,T=14,B=40,a=S.M-4*S.SD,b=S.M+4*S.SD,nb=32,w=(b-a)/nb;
+  const cnt=Array(nb).fill(0);S.s.forEach(v=>{const i=Math.floor((v-a)/w);if(i>=0&&i<nb)cnt[i]++});
+  const pdf=v=>LN*w*Math.exp(-(((v-S.M)/S.SD)**2)/2)/(S.SD*Math.sqrt(2*Math.PI));
+  const ymax=Math.max(...cnt,pdf(S.M))*1.08,sx=v=>L+(v-a)/(b-a)*(W-L-R),sy=c=>H-B-c/ymax*(H-T-B);
+  el(svg,'rect',{x:sx(S.M-S.SD),y:T,width:sx(S.M+S.SD)-sx(S.M-S.SD),height:H-B-T,fill:css('--yellow'),opacity:.25});
+  cnt.forEach((c,i)=>{if(c)el(svg,'rect',{x:sx(a+i*w)+.5,y:sy(c),width:sx(a+(i+1)*w)-sx(a+i*w)-1,height:sy(0)-sy(c),fill:css('--blue'),stroke:css('--ink'),'stroke-width':1.2})});
+  let d='';for(let k=0;k<=200;k++){const v=a+(b-a)*k/200;d+=(k?'L':'M')+sx(v).toFixed(1)+' '+sy(pdf(v)).toFixed(1)}
+  el(svg,'path',{d,fill:'none',stroke:css('--ink'),'stroke-width':2.5,'stroke-dasharray':'7 5'});
+  el(svg,'line',{x1:L,x2:W-R,y1:sy(0),y2:sy(0),stroke:css('--ink'),'stroke-width':3});
+  for(let k=-3;k<=3;k++){const v=S.M+k*S.SD;el(svg,'line',{x1:sx(v),x2:sx(v),y1:sy(0),y2:sy(0)+6,stroke:css('--ink'),'stroke-width':2});el(svg,'text',{x:sx(v),y:sy(0)+21,'text-anchor':'middle','font-size':12},(Math.abs(v-Math.round(v))<0.05?String(Math.round(v)):pl(v,1)).replace('-','−'));
+    el(svg,'text',{x:sx(v),y:sy(0)+35,'text-anchor':'middle','font-size':11,fill:css('--soft')},k===0?'M':(k>0?'+':'−')+Math.abs(k)+' SD')}
+  const mLeft=S.M<S.Me;[[S.M,'M',css('--red'),mLeft?-1:1],[S.Me,'Me',css('--green'),mLeft?1:-1]].forEach(([v,t,c,s])=>{
+    el(svg,'line',{x1:sx(v),x2:sx(v),y1:T,y2:sy(0),stroke:c,'stroke-width':3,'stroke-dasharray':'8 5'});el(svg,'text',{x:sx(v)+s*6,y:T+14+(t==='Me'?16:0),'text-anchor':s>0?'start':'end','font-size':14,'font-weight':700,fill:c},t)});
+  el(svg,'text',{x:W-R,y:T+12,'text-anchor':'end','font-size':12,fill:css('--soft')},'- - - rozkład normalny')}
+function drawGauges(S,TK){const svg=$('#gauges');svg.innerHTML='';const L=70,R=20,W=640;
+  [['SKE','Skośność',-3,3,S.SKE,25],['K','Kurtoza',-2,6,S.K,95]].forEach(([k,lab,lo,hi,v,y])=>{const sx=x=>L+(Math.max(lo,Math.min(hi,x))-lo)/(hi-lo)*(W-L-R);
+    el(svg,'text',{x:0,y:y+18,'font-size':13,'font-weight':700},lab);
+    el(svg,'rect',{x:L,y:y+6,width:W-L-R,height:16,fill:css('--line')});
+    if(TK[k])el(svg,'rect',{x:sx(TK[k][0]),y:y+2,width:Math.max(3,sx(TK[k][1])-sx(TK[k][0])),height:24,fill:css('--green'),opacity:.55});
+    el(svg,'line',{x1:sx(0),x2:sx(0),y1:y+2,y2:y+26,stroke:css('--ink'),'stroke-width':2});
+    for(let t=lo;t<=hi;t++)el(svg,'text',{x:sx(t),y:y+42,'text-anchor':'middle','font-size':11,fill:css('--soft')},String(t).replace('-','−'));
+    el(svg,'path',{d:`M${sx(v)} ${y+4}l-8 -10h16z`,fill:css('--red'),stroke:css('--ink'),'stroke-width':1.5});
+    el(svg,'text',{x:Math.min(W-R-30,Math.max(L+30,sx(v))),y:y-9,'text-anchor':'middle','font-size':13,'font-weight':700,fill:css('--red')},pl(v)+(v>hi||v<lo?' (poza skalą)':''))})}
+function lab(){const S=stats(labData()),T=TASKS[act];
+  $('#oM').textContent=pl(+$('#sM').value,1);$('#oSD').textContent=pl(+$('#sSD').value);
+  drawLab(S);drawGauges(S,T);
+  const [sl]=skeLab(S.SKE),[kl]=kLab(S.K);
+  $('#labStats').innerHTML=`<span><i>M</i> = <b>${pl(S.M)}</b></span><span><i>Me</i> = <b>${pl(S.Me)}</b></span><span><i>SD</i> = <b>${pl(S.SD)}</b></span><span><i>SKE</i> = <b>${pl(S.SKE)}</b> ${sl}</span><span><i>K</i> = <b>${pl(S.K)}</b> ${kl}</span>`;
+  const c=conds(S,T),ok=c.every(x=>x[1]);if(ok)done.add(act);
+  $('#taskbox').className='taskbox'+(ok?' ok':'');
+  $('#taskbox').innerHTML=`<span class="eyebrow">Zadanie ${act+1} z ${TASKS.length}</span><h3>${T.t}</h3><p>${T.d}</p><div class="conds">${c.map(([t,o])=>`<span class="pill ${o?'g':'r'}">${o?'✓':'✗'} ${t}</span>`).join('')}</div>${ok?'<b style="color:#16773a">Brawo, zadanie zaliczone!'+(act<TASKS.length-1?' Wybierz kolejne z listy.':'')+'</b>':''}`;
+  $$('#tasks button').forEach((b,i)=>{b.classList.toggle('done',done.has(i));b.setAttribute('aria-pressed',i===act);b.querySelector('.n').textContent=done.has(i)?'✓':i+1});
+  $('#chScore').textContent=done.size+' / '+TASKS.length}
+$('#tasks').innerHTML=TASKS.map((T,i)=>`<li><button type="button" aria-pressed="false"><span class="n">${i+1}</span><span class="tt">${T.t}</span></button></li>`).join('');
+$$('#tasks button').forEach((b,i)=>b.onclick=()=>{act=i;lab()});
+['#sM','#sSD','#sSk','#sKu'].forEach(s=>$(s).addEventListener('input',lab));
+$('#labReset').onclick=()=>{$('#sSk').value=0;$('#sKu').value=0;lab()};
+lab();
+
+load(current);
+})();
+</script>
+
+</body>
+</html>
