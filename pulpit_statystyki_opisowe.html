@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pulpit statystyk opisowych</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Caveat+Brush&display=swap">
+<style>
+/* Layout: notebook-style pulpit — sticky data panel on the left, live stat tiles + charts on the right, practice below. Single light look, same as the class decks. */
+:root{
+  --paper:#ffffff; --ink:#111111; --soft:#5d5a63; --line:#e6e3ea;
+  --red:#e3201b; --yellow:#ffc21a; --blue:#1f78c8; --green:#22a447;
+  --yellowBg:#fff6d6; --blueBg:#e6f1fb; --redBg:#fde6e5; --greenBg:#e5f6ea;
+  --f-display:"Titan One","Arial Black",Impact,sans-serif;
+  --f-body:"Courier Prime","Courier New",Courier,monospace;
+  --f-hand:"Caveat Brush","Comic Sans MS",cursive;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;margin:0}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;line-height:1.1}
+h1{font-size:clamp(1.9rem,4.5vw,3rem)}
+h2{font-size:clamp(1.35rem,2.6vw,1.8rem)}
+h3{font-size:1.1rem}
+p{margin:0}
+.eyebrow{font-weight:700;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.hand{font-family:var(--f-hand);font-size:1.5em;line-height:1}
+.tn{font-variant-numeric:tabular-nums}
+button,input,textarea,select{font:inherit;color:inherit}
+.btn{background:var(--paper);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);padding:.3em .75em;font-weight:700;cursor:pointer;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.btn.sel{background:var(--ink);color:var(--paper)}
+.btn:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* header */
+header.top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:end;border-bottom:6px solid var(--ink);padding-bottom:18px}
+header.top .credit{text-align:right;font-size:.9rem}
+header.top .credit b{display:inline-block;border-bottom:5px solid var(--yellow);line-height:1.1}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.9rem}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{width:14px;height:14px;border:2px solid var(--ink);display:inline-block}
+
+/* main grid */
+.main{display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr);gap:24px;align-items:start}
+.panel{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--yellow);padding:16px;display:flex;flex-direction:column;gap:12px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);background:var(--paper)}
+.panel textarea{width:100%;min-height:150px;border:2px solid var(--ink);padding:8px;resize:vertical;background:var(--yellowBg);font-variant-numeric:tabular-nums;line-height:1.45}
+.panel .hint{font-size:.82rem;color:var(--soft)}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets .btn{font-size:.8rem;padding:.15em .5em;box-shadow:2px 2px 0 var(--ink)}
+.err{color:var(--red);font-weight:700;font-size:.85rem}
+.add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+.add input{border:2px solid var(--ink);padding:.25em .5em;min-width:0}
+
+.right{display:flex;flex-direction:column;gap:22px;min-width:0}
+.groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.group{border:3px solid var(--ink);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.group.c{box-shadow:6px 6px 0 var(--yellow)} .group.d{box-shadow:6px 6px 0 var(--blue)} .group.s{box-shadow:6px 6px 0 var(--red)}
+.group h3 .hand{font-size:1.2em;margin-right:4px}
+.group.c h3 .hand{color:#c78f00}.group.d h3 .hand{color:var(--blue)}.group.s h3 .hand{color:var(--red)}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tile{border-top:2px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:0;cursor:help;min-width:0}
+.tile .k{font-size:.78rem;color:var(--soft);font-weight:700}
+.tile .v{font-family:var(--f-display);font-size:1.45rem;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile .v.small{font-size:1.05rem}
+.tile.full{grid-column:1/-1}
+.tile[aria-expanded="true"] .k{color:var(--ink)}
+.tipbox{font-size:.85rem;background:var(--blueBg);border-left:5px solid var(--blue);padding:8px 10px}
+.pill{display:inline-block;border:2px solid currentColor;padding:0 .45em;font-weight:700;font-size:.8rem;line-height:1.5}
+.pill.g{color:#16773a;background:var(--greenBg)}.pill.y{color:#8a5f00;background:var(--yellowBg)}.pill.r{color:#b3150f;background:var(--redBg)}.pill.b{color:#145a96;background:var(--blueBg)}
+
+.charts{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+.card{border:3px solid var(--ink);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card svg{width:100%;height:auto;display:block}
+.card svg text{font-family:var(--f-body);fill:var(--ink)}
+.toggles{display:flex;flex-wrap:wrap;gap:12px;font-size:.85rem;font-weight:700}
+.toggles label{display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+
+.readout{border:3px solid var(--ink);background:var(--yellowBg);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.readout .apa{background:var(--paper);border:2px dashed var(--ink);padding:8px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.readout .apa .btn{font-size:.8rem;padding:.1em .5em;box-shadow:2px 2px 0 var(--ink)}
+
+/* practice */
+.section{display:flex;flex-direction:column;gap:14px}
+.section > header{display:flex;flex-direction:column;gap:4px}
+.challenges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.challenges{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.challenges{grid-template-columns:1fr}}
+.ch{border:3px solid var(--ink);padding:10px 12px;display:flex;flex-direction:column;gap:6px;transition:background .25s}
+.ch.done{background:var(--greenBg)}
+.ch .st{font-weight:700;font-size:.85rem}
+.ch.done .st{color:#16773a}
+.ch .st::before{content:"☐ "}
+.ch.done .st::before{content:"☑ "}
+.score{font-family:var(--f-display);font-size:1.4rem}
+
+.cheat-wrap{overflow-x:auto;border:3px solid var(--ink)}
+table.cheat{border-collapse:collapse;width:100%;min-width:720px;font-size:.92rem}
+table.cheat th{background:var(--ink);color:var(--paper);text-align:left;padding:.45em .7em}
+table.cheat td{padding:.45em .7em;border-top:2px solid var(--line);vertical-align:top}
+table.cheat td:first-child{font-weight:700;white-space:nowrap}
+table.cheat tr.sec td{background:var(--yellowBg);font-family:var(--f-display);font-weight:400;border-top:3px solid var(--ink)}
+
+.quiz{display:flex;flex-direction:column;gap:12px}
+.q{border-bottom:2px solid var(--line);padding-bottom:10px;display:flex;flex-direction:column;gap:6px}
+.q .opts{display:flex;flex-wrap:wrap;gap:6px}
+.q .opts .btn{font-size:.85rem;padding:.15em .55em;box-shadow:2px 2px 0 var(--ink)}
+.q .opts .btn.ok{background:var(--green);border-color:var(--green);color:var(--paper)}
+.q .opts .btn.no{background:var(--red);border-color:var(--red);color:var(--paper)}
+.q .why{font-size:.85rem;color:var(--soft)}
+
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.jam{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--blue);padding:14px;display:flex;flex-direction:column;gap:8px}
+.path{font-weight:700;background:var(--blueBg);padding:.2em .5em;display:inline-block}
+footer{border-top:6px solid var(--ink);padding-top:12px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:.85rem;color:var(--soft)}
+
+@media (max-width:1050px){.groups{grid-template-columns:1fr}.charts{grid-template-columns:1fr}}
+@media (max-width:820px){.main{grid-template-columns:1fr}.panel{position:static}.two{grid-template-columns:1fr}header.top{grid-template-columns:1fr}header.top .credit{text-align:left}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="eyebrow">Podstawy metodologii i statystyki · zajęcia 2</div>
+    <h1>Pulpit statystyk opisowych</h1>
+    <p style="max-width:62ch">Wpisz lub wybierz dane, a pulpit od razu policzy statystyki, narysuje histogram i wykres skrzynkowy oraz podpowie, jak je opisać. Kliknij dowolny kafelek, żeby zobaczyć, co oznacza.</p>
+    <div class="legend"><span><i style="background:var(--yellow)"></i>tendencja centralna</span><span><i style="background:var(--blue)"></i>rozproszenie</span><span><i style="background:var(--red)"></i>kształt rozkładu</span></div>
+  </div>
+  <div class="credit"><b>mgr Michał Zięba</b><br>USWPS Poznań – materiały dydaktyczne</div>
+</header>
+
+<div class="main">
+  <aside class="panel" aria-label="Dane">
+    <h2>Twoje dane</h2>
+    <div class="presets" id="presets"></div>
+    <label for="data" class="hint">Wyniki oddzielaj spacją lub enterem. Ułamki możesz pisać z przecinkiem (8,2).</label>
+    <textarea id="data" spellcheck="false"></textarea>
+    <div class="err" id="err" hidden></div>
+    <div class="add">
+      <input id="addVal" type="text" inputmode="decimal" placeholder="np. 55" aria-label="Wartość do dodania">
+      <button class="btn" type="button" id="addBtn">Dodaj</button>
+    </div>
+    <div class="row">
+      <button class="btn" type="button" id="popBtn" style="font-size:.85rem">Usuń ostatni</button>
+      <button class="btn" type="button" id="sortBtn" style="font-size:.85rem">Uszereguj</button>
+    </div>
+    <p class="hint" id="presetNote"></p>
+  </aside>
+
+  <div class="right">
+    <div class="groups">
+      <section class="group c" aria-label="Tendencja centralna">
+        <h3><span class="hand">●</span>Tendencja centralna</h3>
+        <div class="tiles">
+          <div class="tile" data-t="M"><span class="k">Średnia (M)</span><span class="v tn" id="vM"></span></div>
+          <div class="tile" data-t="Me"><span class="k">Mediana (Me)</span><span class="v tn" id="vMe"></span></div>
+          <div class="tile full" data-t="Mo"><span class="k">Modalna (Mo)</span><span class="v tn small" id="vMo"></span></div>
+        </div>
+      </section>
+      <section class="group d" aria-label="Rozproszenie">
+        <h3><span class="hand">↔</span>Rozproszenie</h3>
+        <div class="tiles">
+          <div class="tile" data-t="SD"><span class="k">Odch. std. (SD)</span><span class="v tn" id="vSD"></span></div>
+          <div class="tile" data-t="R"><span class="k">Rozstęp (R)</span><span class="v tn" id="vR"></span></div>
+          <div class="tile" data-t="mm"><span class="k">Min – max</span><span class="v tn small" id="vMM"></span></div>
+          <div class="tile" data-t="Q"><span class="k">Q1 · Q3 · IQR</span><span class="v tn small" id="vQ"></span></div>
+        </div>
+      </section>
+      <section class="group s" aria-label="Kształt rozkładu">
+        <h3><span class="hand">∿</span>Kształt rozkładu</h3>
+        <div class="tiles">
+          <div class="tile" data-t="SKE"><span class="k">Skośność (SKE)</span><span class="v tn" id="vSKE"></span><span id="pSKE"></span></div>
+          <div class="tile" data-t="K"><span class="k">Kurtoza (K)</span><span class="v tn" id="vK"></span><span id="pK"></span></div>
+          <div class="tile full" data-t="N"><span class="k">Liczba wyników (N)</span><span class="v tn small" id="vN"></span></div>
+        </div>
+      </section>
+    </div>
+    <div class="tipbox" id="tip"><b>Wskazówka:</b> kliknij kafelek ze statystyką, a tu pojawi się jej wyjaśnienie z zajęć.</div>
+
+    <div class="charts">
+      <div class="card">
+        <h3>Histogram</h3>
+        <div class="toggles">
+          <label><input type="checkbox" id="tM" checked> średnia</label>
+          <label><input type="checkbox" id="tMe" checked> mediana</label>
+          <label><input type="checkbox" id="tSD" checked> ±1 SD</label>
+        </div>
+        <svg id="hist" viewBox="0 0 560 300" role="img" aria-label="Histogram wpisanych danych"></svg>
+      </div>
+      <div class="card">
+        <h3>Wykres skrzynkowy</h3>
+        <div class="toggles"><label><input type="checkbox" id="tLim"> pokaż limity wartości odstających</label></div>
+        <svg id="box" viewBox="0 0 400 300" role="img" aria-label="Wykres skrzynkowy wpisanych danych"></svg>
+        <p class="hint" id="outTxt" style="font-size:.85rem"></p>
+      </div>
+    </div>
+
+    <div class="readout" aria-live="polite">
+      <h3>Jak to opisać?</h3>
+      <p id="desc"></p>
+      <div class="apa"><span id="apa" class="tn"></span><button class="btn" type="button" id="copy">Kopiuj</button></div>
+    </div>
+  </div>
+</div>
+
+<section class="section" aria-labelledby="chH">
+  <header><div class="eyebrow">Ćwiczenia na żywo</div><h2 id="chH">Zmień dane tak, żeby…</h2>
+  <p>Wybierz gotowe dane, a potem zmieniaj je sam(a): dopisuj, usuwaj i poprawiaj wyniki. Zadanie zalicza się, gdy po Twojej zmianie dane spełnią warunek.</p></header>
+  <div class="challenges" id="challenges"></div>
+  <div class="row"><span class="score" id="chScore"></span><span class="hint" style="color:var(--soft)">wykonanych zadań</span></div>
+</section>
+
+<section class="section" aria-labelledby="chtH">
+  <header><div class="eyebrow">Ściąga</div><h2 id="chtH">Wszystkie statystyki w jednym miejscu</h2></header>
+  <div class="cheat-wrap"><table class="cheat">
+    <thead><tr><th>Statystyka</th><th>Co mówi?</th><th>Przykład z zajęć</th><th>Nazwa w Jamovi</th></tr></thead>
+    <tbody>
+      <tr class="sec"><td colspan="4">Tendencja centralna</td></tr>
+      <tr><td><i>M</i> – średnia</td><td>Suma wszystkich wartości podzielona przez ich liczbę.</td><td>5 psów: 66,75 kg / 5 = <b>13,35 kg</b></td><td>Średnia</td></tr>
+      <tr><td><i>Me</i> – mediana</td><td>Wartość środkowa po uszeregowaniu wyników.</td><td>Wzrost 11 osób: 6. wartość = <b>175 cm</b></td><td>Mediana</td></tr>
+      <tr><td><i>Mo</i> – modalna</td><td>Wartość, która występuje najczęściej (dominanta).</td><td>4 różowe, 2 pomarańczowe, 1 niebieski → <b>różowy</b></td><td>Modalna</td></tr>
+      <tr class="sec"><td colspan="4">Rozproszenie</td></tr>
+      <tr><td><i>SD</i></td><td>Jak bardzo wyniki typowo różnią się od średniej. Małe <i>SD</i> – wyniki podobne do średniej.</td><td>Grupa A: <i>SD</i> = 2,62; grupa B: <i>SD</i> = 16,48</td><td>Odchylenie standardowe</td></tr>
+      <tr><td><i>R</i> – rozstęp</td><td>Różnica między największym a najmniejszym wynikiem.</td><td>SWLS: 33 − 5 = <b>28</b></td><td>Rozstęp, Minimum, Maksimum</td></tr>
+      <tr><td>Q1, Q3, IQR</td><td>Q1: 25% osób ma wynik niższy. Q3: 75% osób ma wynik niższy. IQR = Q3 − Q1.</td><td>SWLS: Q1 = 9, Q3 = 29</td><td>25-ty i 75-ty percentyl, IQR</td></tr>
+      <tr class="sec"><td colspan="4">Kształt rozkładu</td></tr>
+      <tr><td><i>SKE</i> – skośność</td><td><i>SKE</i> &gt; 0: prawoskośny (ogon po prawej). <i>SKE</i> &lt; 0: lewoskośny (ogon po lewej). Normalny: 0.</td><td>ASHS: <i>SKE</i> = −0,77 → lewoskośny</td><td>Skośność</td></tr>
+      <tr><td><i>K</i> – kurtoza</td><td><i>K</i> &gt; 0: szpiczasty (leptokurtyczny). <i>K</i> &lt; 0: wypłaszczony (platykurtyczny). Normalny: 0.</td><td>ASHS: <i>K</i> = 0,62 → leptokurtyczny</td><td>Kurtoza</td></tr>
+      <tr class="sec"><td colspan="4">Wartości odstające</td></tr>
+      <tr><td>Limity</td><td>Dolny: Q1 − 1,5 × IQR. Górny: Q3 + 1,5 × IQR. Wynik poza limitem to kropka na wykresie skrzynkowym.</td><td>Mężczyźni ASHS: limity 22 i 54, wynik 16 → odstający</td><td>Wykres pudełkowy</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<div class="two">
+  <section class="section" aria-labelledby="qH">
+    <header><div class="eyebrow">Sprawdź się</div><h2 id="qH">Szybki quiz</h2></header>
+    <div class="quiz" id="quiz"></div>
+    <div class="row"><span class="score" id="qScore"></span><button class="btn" type="button" id="qReset">Od nowa</button></div>
+  </section>
+  <section class="section" aria-labelledby="jH">
+    <header><div class="eyebrow">W programie</div><h2 id="jH">Jak to zrobić w Jamovi</h2></header>
+    <div class="jam">
+      <h3>Statystyki</h3>
+      <span class="path">Eksploracja → Statystyki opisowe → Statystyki</span>
+      <p>Zaznacz: N, Braki danych, Średnia, Mediana, Modalna, Odchylenie standardowe, Rozstęp, Minimum, Maksimum, Skośność, Kurtoza, Kwartyle.</p>
+    </div>
+    <div class="jam">
+      <h3>Wykresy</h3>
+      <span class="path">Eksploracja → Statystyki opisowe → Wykresy</span>
+      <p>Zaznacz <b>Histogram</b> oraz <b>Wykres pudełkowy</b>. Aby porównać grupy (np. kobiety i mężczyzn), przenieś zmienną grupującą do pola <b>Podziel według</b>.</p>
+    </div>
+    <div class="jam">
+      <h3>Pamiętaj w pracy</h3>
+      <p>Jamovi pokazuje kropkę dziesiętną (37.14). W tekście po polsku piszesz przecinek i kursywę: <i>M</i> = 37,14; <i>SD</i> = 6,25.</p>
+    </div>
+  </section>
+</div>
+
+<footer><span>mgr Michał Zięba · USWPS Poznań – materiały dydaktyczne</span><span>Podstawy metodologii i statystyki · zajęcia 2: statystyki opisowe i wizualizacja danych</span></footer>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const NS='http://www.w3.org/2000/svg';
+function el(svg,tag,a,txt){const e=document.createElementNS(NS,tag);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;svg.appendChild(e);return e}
+const pl=(x,d=2)=>Number.isFinite(x)?(Math.round(x*10**d)/10**d).toFixed(d).replace('.',',').replace('-','−'):'–';
+const plv=x=>{const r=Math.round(x*100)/100;return Number.isInteger(r)?String(r).replace('-','−'):pl(r)};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* --- data presets --- */
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const r1=rng(1),r2=rng(21),r3=rng(5);
+const ashs=Array.from({length:60},()=>{const z=gauss(r1);return Math.max(16,Math.min(48,Math.round(39+5.5*z-(z<0?0.9*z*z:0))))});
+const czas=Array.from({length:40},()=>Math.round(320+(-Math.log(r2()))*90));
+const wzrostN=Array.from({length:50},()=>Math.round(170+10*gauss(r3)));
+const PRESETS=[
+ {k:'psy',n:'Psy (waga, kg)',d:[8.2,22.5,6.4,11.15,18.5],note:'5 psów ze slajdu o średniej: M = 13,35 kg.'},
+ {k:'wzrost',n:'Wzrost 11 osób',d:[156,161,163,166,171,175,179,182,184,189,191],note:'Wzrost 11 osób ze slajdu o medianie: Me = 175 cm.'},
+ {k:'swls',n:'SWLS',d:[5,8,9,12,16,21,23,26,29,32,33],note:'Satysfakcja z życia (SWLS) ze slajdu o kwartylach: Q1 = 9, Q3 = 29, R = 28.'},
+ {k:'normal',n:'Wzrost 50 osób',d:wzrostN,note:'Dane przykładowe zbliżone do rozkładu normalnego (M ≈ 170, SD ≈ 10).'},
+ {k:'ashs',n:'Nadzieja (lewoskośny)',d:ashs,note:'Dane przykładowe podobne do ASHS z zajęć: lekko lewoskośne i lekko szpiczaste.'},
+ {k:'czas',n:'Czas reakcji (prawoskośny)',d:czas,note:'Dane przykładowe: czas reakcji w ms. Typowy rozkład prawoskośny.'}];
+let current='swls',custom=false;
+const box=$('#presets');
+PRESETS.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=p.n;b.dataset.k=p.k;b.onclick=()=>load(p.k);box.appendChild(b)});
+function load(k){const p=PRESETS.find(x=>x.k===k);current=k;custom=false;$('#data').value=p.d.map(v=>String(v).replace('.',',')).join(' ');$('#presetNote').textContent=p.note;
+  $$('#presets .btn').forEach(b=>b.classList.toggle('sel',b.dataset.k===k));update()}
+
+/* --- parsing & stats --- */
+function parse(txt){const bad=[],out=[];txt.split(/[\s;]+/).filter(Boolean).forEach(t=>{const v=Number(t.replace(',','.'));if(Number.isFinite(v))out.push(v);else bad.push(t)});return {out,bad}}
+function q7(a,p){const n=a.length,h=(n+1)*p;if(h<=1)return a[0];if(h>=n)return a[n-1];const l=Math.floor(h);return a[l-1]+(h-l)*(a[l]-a[l-1])}
+function stats(x){const n=x.length,s=[...x].sort((a,b)=>a-b),M=x.reduce((a,b)=>a+b,0)/n;
+  const m2=x.reduce((a,v)=>a+(v-M)**2,0)/n,m3=x.reduce((a,v)=>a+(v-M)**3,0)/n,m4=x.reduce((a,v)=>a+(v-M)**4,0)/n;
+  const SD=n>1?Math.sqrt(m2*n/(n-1)):NaN;
+  const g1=m2>0?m3/m2**1.5:NaN,g2=m2>0?m4/m2**2-3:NaN;
+  const SKE=n>2?g1*Math.sqrt(n*(n-1))/(n-2):NaN,K=n>3?((n+1)*g2+6)*(n-1)/((n-2)*(n-3)):NaN;
+  const cnt=new Map();x.forEach(v=>cnt.set(v,(cnt.get(v)||0)+1));const mx=Math.max(...cnt.values());
+  const modes=mx>1?[...cnt].filter(([,c])=>c===mx).map(([v])=>v).sort((a,b)=>a-b):[];
+  const Q1=q7(s,.25),Me=q7(s,.5),Q3=q7(s,.75),IQR=Q3-Q1,lo=Q1-1.5*IQR,hi=Q3+1.5*IQR;
+  return {n,s,M,SD,SKE,K,modes,modeCount:mx,Me,Q1,Q3,IQR,lo,hi,min:s[0],max:s[n-1],R:s[n-1]-s[0],out:s.filter(v=>v<lo||v>hi)}}
+function skeLab(v){if(!Number.isFinite(v))return['','b'];const a=Math.abs(v);return a<.5?['symetryczny','g']:[v>0?'prawoskośny':'lewoskośny',a<1?'y':'r']}
+function kLab(v){if(!Number.isFinite(v))return['','b'];const a=Math.abs(v);return a<.5?['mezokurtyczny','g']:[v>0?'szpiczasty':'spłaszczony',a<1?'y':'r']}
+
+/* --- tiles & explanations --- */
+const TIPS={
+ M:'<b>Średnia</b> to suma wszystkich wartości podzielona przez ich liczbę. Jest wrażliwa na wartości odstające: jeden bardzo wysoki wynik potrafi ją mocno przesunąć.',
+ Me:'<b>Mediana</b> to wartość środkowa po uszeregowaniu wyników od najmniejszego. Połowa osób ma wynik niższy, połowa wyższy. Przy parzystej liczbie wyników to średnia z dwóch środkowych.',
+ Mo:'<b>Modalna</b> (dominanta) to wartość, która występuje najczęściej. Może ich być kilka – Jamovi pokazuje wtedy pierwszą i dodaje przypis „a”.',
+ SD:'<b>Odchylenie standardowe</b> mówi, jak bardzo wyniki typowo różnią się od średniej. Małe SD: większość wyników jest podobna do średniej. Duże SD: próba jest silnie zróżnicowana.',
+ R:'<b>Rozstęp</b> to różnica między największym a najmniejszym wynikiem (max − min). Zależy tylko od dwóch skrajnych osób.',
+ mm:'<b>Minimum i maksimum</b> to najmniejszy i największy wynik. Warto je sprawdzać, bo pomagają wyłapać literówki w bazie (np. 55 na skali 1–5).',
+ Q:'<b>Kwartyle:</b> Q1 – 25% osób ma wynik niższy; Q3 – 75% osób ma wynik niższy. <b>IQR</b> = Q3 − Q1 to rozstęp międzykwartylowy, czyli wysokość pudełka na wykresie skrzynkowym. Programy liczą kwartyle nieco różnymi metodami, więc Jamovi może czasem podać trochę inną wartość.',
+ SKE:'<b>Skośność:</b> SKE &gt; 0 – rozkład prawoskośny (długi ogon po prawej), SKE &lt; 0 – lewoskośny (długi ogon po lewej). W idealnym rozkładzie normalnym skośność wynosi 0.',
+ K:'<b>Kurtoza:</b> K &gt; 0 – rozkład bardziej szpiczasty (leptokurtyczny), K &lt; 0 – bardziej wypłaszczony (platykurtyczny). W idealnym rozkładzie normalnym kurtoza wynosi 0.',
+ N:'<b>N</b> to liczba wyników. Skośność wymaga co najmniej 3 wyników, a kurtoza co najmniej 4. Przy małych próbach obie są bardzo niestabilne.'};
+$$('.tile').forEach(t=>{t.tabIndex=0;t.setAttribute('role','button');t.setAttribute('aria-expanded','false');
+  const f=()=>{$$('.tile').forEach(x=>x.setAttribute('aria-expanded','false'));t.setAttribute('aria-expanded','true');$('#tip').innerHTML=TIPS[t.dataset.t]};
+  t.onclick=f;t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}}});
+
+/* --- charts --- */
+function niceStep(range,target){const raw=range/target,p=10**Math.floor(Math.log10(raw)),m=raw/p;return (m<1.5?1:m<3?2:m<7?5:10)*p}
+function drawHist(S){const svg=$('#hist');svg.innerHTML='';const W=560,H=300,L=46,R=14,T=16,B=46;
+  const k=Math.max(5,Math.min(14,Math.ceil(Math.log2(S.n)+1)));let w=niceStep(Math.max(S.R,1),k);
+  const allInt=S.s.every(Number.isInteger);if(allInt)w=Math.max(1,Math.round(w));
+  let a=Math.floor(S.min/w)*w,b=Math.floor(S.max/w)*w+w;
+  const pad=Math.max(S.SD||0,w);const xa=Math.min(a,S.M-pad*1.05),xb=Math.max(b,S.M+pad*1.05);
+  const nb=Math.round((b-a)/w),cnt=Array(nb).fill(0);S.s.forEach(v=>{cnt[Math.min(nb-1,Math.floor((v-a)/w+1e-9))]++});
+  const ymax=Math.max(...cnt),ys=niceStep(ymax,4),ytop=Math.max(ys,Math.ceil(ymax/ys)*ys);
+  const sx=v=>L+(v-xa)/(xb-xa)*(W-L-R),sy=c=>H-B-c/ytop*(H-T-B);
+  for(let c=0;c<=ytop;c+=ys){el(svg,'line',{x1:L,x2:W-R,y1:sy(c),y2:sy(c),stroke:css('--line'),'stroke-width':1});el(svg,'text',{x:L-8,y:sy(c)+5,'text-anchor':'end','font-size':13},c)}
+  if($('#tSD').checked&&Number.isFinite(S.SD))el(svg,'rect',{x:sx(S.M-S.SD),y:T,width:sx(S.M+S.SD)-sx(S.M-S.SD),height:H-B-T,fill:css('--yellow'),opacity:.35});
+  cnt.forEach((c,i)=>{if(c)el(svg,'rect',{x:sx(a+i*w)+1,y:sy(c),width:Math.max(1,sx(a+(i+1)*w)-sx(a+i*w)-2),height:sy(0)-sy(c),fill:css('--blue'),stroke:css('--ink'),'stroke-width':2})});
+  el(svg,'line',{x1:L,x2:W-R,y1:sy(0),y2:sy(0),stroke:css('--ink'),'stroke-width':3});
+  const xs=niceStep(xb-xa,6);for(let v=Math.ceil(xa/xs)*xs;v<=xb+1e-9;v+=xs){el(svg,'line',{x1:sx(v),x2:sx(v),y1:sy(0),y2:sy(0)+6,stroke:css('--ink'),'stroke-width':2});el(svg,'text',{x:sx(v),y:sy(0)+22,'text-anchor':'middle','font-size':13},plv(v))}
+  el(svg,'text',{x:(L+W-R)/2,y:H-6,'text-anchor':'middle','font-size':13,fill:css('--soft')},'wynik');
+  el(svg,'text',{x:14,y:(T+H-B)/2,'text-anchor':'middle','font-size':13,fill:css('--soft'),transform:`rotate(-90 14 ${(T+H-B)/2})`},'liczba osób');
+  const lines=[];if($('#tM').checked)lines.push([S.M,'M',css('--red')]);if($('#tMe').checked)lines.push([S.Me,'Me',css('--green')]);
+  lines.forEach(([v,t,c],i)=>{const left=lines.length===2&&((i===0&&S.M<S.Me)||(i===1&&S.Me<=S.M));
+    el(svg,'line',{x1:sx(v),x2:sx(v),y1:T,y2:sy(0),stroke:c,'stroke-width':3.5,'stroke-dasharray':'8 5'});
+    el(svg,'text',{x:sx(v)+(left?-6:6),y:T+14+i*16,'text-anchor':left?'end':'start','font-size':14,'font-weight':700,fill:c},t)})}
+function drawBox(S){const svg=$('#box');svg.innerHTML='';const W=400,H=300,L=56,R=20,T=18,B=24,cx=(L+W-R)/2,bw=110;
+  const showLim=$('#tLim').checked;let a=Math.min(S.min,showLim?S.lo:S.min),b=Math.max(S.max,showLim?S.hi:S.max);if(a===b){a-=1;b+=1}
+  const ys=niceStep(b-a,5);a=Math.floor(a/ys)*ys;b=Math.ceil(b/ys)*ys;const sy=v=>H-B-(v-a)/(b-a)*(H-T-B);
+  for(let v=a;v<=b+1e-9;v+=ys){el(svg,'line',{x1:L,x2:W-R,y1:sy(v),y2:sy(v),stroke:css('--line'),'stroke-width':1});el(svg,'text',{x:L-8,y:sy(v)+5,'text-anchor':'end','font-size':13},plv(v))}
+  const inl=S.s.filter(v=>v>=S.lo&&v<=S.hi),wl=Math.min(...inl),wh=Math.max(...inl);
+  el(svg,'line',{x1:cx,x2:cx,y1:sy(wh),y2:sy(S.Q3),stroke:css('--ink'),'stroke-width':3});el(svg,'line',{x1:cx,x2:cx,y1:sy(S.Q1),y2:sy(wl),stroke:css('--ink'),'stroke-width':3});
+  [wl,wh].forEach(v=>el(svg,'line',{x1:cx-26,x2:cx+26,y1:sy(v),y2:sy(v),stroke:css('--ink'),'stroke-width':3}));
+  el(svg,'rect',{x:cx-bw/2,y:sy(S.Q3),width:bw,height:Math.max(2,sy(S.Q1)-sy(S.Q3)),fill:css('--blueBg'),stroke:css('--ink'),'stroke-width':3});
+  el(svg,'line',{x1:cx-bw/2,x2:cx+bw/2,y1:sy(S.Me),y2:sy(S.Me),stroke:css('--red'),'stroke-width':4});
+  const lab=[[S.Q3,'Q3'],[S.Me,'Me'],[S.Q1,'Q1']];let last=-99;lab.forEach(([v,t])=>{let y=sy(v)+5;if(y-last<15)y=last+15;last=y;el(svg,'text',{x:cx+bw/2+8,y,'font-size':13,'font-weight':700,fill:t==='Me'?css('--red'):css('--ink')},t+' = '+plv(v))});
+  if(showLim)[[S.lo,'dolny limit'],[S.hi,'górny limit']].forEach(([v,t])=>{el(svg,'line',{x1:L,x2:W-R,y1:sy(v),y2:sy(v),stroke:css('--red'),'stroke-width':2,'stroke-dasharray':'6 5'});el(svg,'text',{x:L+4,y:sy(v)-5,'font-size':12,fill:css('--red')},t+' = '+plv(v))});
+  S.out.forEach(v=>el(svg,'circle',{cx,cy:sy(v),r:6,fill:css('--ink')}));
+  $('#outTxt').innerHTML=S.out.length?`Wartości odstające (kropki): <b>${S.out.map(plv).join(', ')}</b>. Limity: ${plv(S.lo)} i ${plv(S.hi)} (Q1 − 1,5 × IQR oraz Q3 + 1,5 × IQR).`:`Brak wartości odstających. Wszystkie wyniki mieszczą się między ${plv(S.lo)} a ${plv(S.hi)}.`}
+
+/* --- description --- */
+function describe(S){const [sl]=skeLab(S.SKE),[kl]=kLab(S.K);const parts=[];
+  parts.push(`Średni wynik wyniósł <b><i>M</i> = ${pl(S.M)}</b> przy odchyleniu standardowym <b><i>SD</i> = ${pl(S.SD)}</b>. Połowa osób uzyskała wynik niższy niż <b>${plv(S.Me)}</b> (mediana).`);
+  if(Number.isFinite(S.SKE)){const d=S.M-S.Me;
+    parts.push(sl==='symetryczny'?`Rozkład jest zbliżony do symetrycznego (<i>SKE</i> = ${pl(S.SKE)}).`:`Rozkład jest <b>${sl}</b> (<i>SKE</i> = ${pl(S.SKE)}): długi ogon jest po ${S.SKE>0?'prawej':'lewej'} stronie${Math.abs(d)>0.005?`, a średnia leży ${d<0?'poniżej':'powyżej'} mediany`:''}.`)}
+  if(Number.isFinite(S.K))parts.push(kl==='mezokurtyczny'?`Kurtoza jest bliska zeru (<i>K</i> = ${pl(S.K)}), więc rozkład nie jest wyraźnie ani szpiczasty, ani spłaszczony.`:`Rozkład jest <b>${kl==='szpiczasty'?'bardziej szpiczasty (leptokurtyczny)':'bardziej spłaszczony (platykurtyczny)'}</b> niż normalny (<i>K</i> = ${pl(S.K)}).`);
+  if(S.out.length)parts.push(`Na wykresie skrzynkowym widać ${S.out.length===1?'jedną wartość odstającą':S.out.length+' wartości odstające'}.`);
+  if(S.n<10)parts.push(`<span class="pill y">uwaga</span> Masz tylko ${S.n} wyników – skośność i kurtoza są przy tak małej próbie mało wiarygodne.`);
+  $('#desc').innerHTML=parts.join(' ');
+  $('#apa').innerHTML=`<i>M</i> = ${pl(S.M)}; <i>SD</i> = ${pl(S.SD)}; <i>Me</i> = ${plv(S.Me)}; <i>SKE</i> = ${pl(S.SKE)}; <i>K</i> = ${pl(S.K)}`}
+
+/* --- challenges --- */
+const CH=[
+ ['Rozkład stanie się prawoskośny','Zrób tak, żeby SKE było większe niż 0,5.',S=>S.SKE>0.5],
+ ['Pojawi się wartość odstająca','Dodaj wynik, który na wykresie skrzynkowym będzie kropką.',S=>S.out.length>0],
+ ['Średnia i mediana się rozjadą','Zrób tak, żeby M i Me różniły się o więcej niż 5.',S=>Math.abs(S.M-S.Me)>5],
+ ['Wyniki będą bardzo podobne','Co najmniej 5 wyników i SD mniejsze niż 2.',S=>S.n>=5&&S.SD<2],
+ ['Będą dwie modalne','Dwie różne wartości występują najczęściej, tyle samo razy.',S=>S.modes.length===2],
+ ['Rozkład będzie szpiczasty','Co najmniej 8 wyników i K większe niż 1.',S=>S.n>=8&&S.K>1]];
+const chBox=$('#challenges');CH.forEach(([t,d],i)=>{const c=document.createElement('div');c.className='ch';c.id='ch'+i;c.innerHTML=`<h3>${t}</h3><p style="font-size:.9rem">${d}</p><span class="st">jeszcze nie</span>`;chBox.appendChild(c)});
+const doneEver=new Set();
+function checkCh(S){CH.forEach(([,,f],i)=>{const ok=!!f(S);if(ok&&custom)doneEver.add(i);const c=$('#ch'+i);c.classList.toggle('done',doneEver.has(i));c.querySelector('.st').textContent=ok&&custom?'zaliczone':ok?'spełnione w gotowych danych – zmień coś sam(a)':doneEver.has(i)?'zaliczone wcześniej':'jeszcze nie'});
+  $('#chScore').textContent=doneEver.size+' / '+CH.length}
+
+/* --- update --- */
+let lastS=null;
+function update(){const {out,bad}=parse($('#data').value);const e=$('#err');
+  if(bad.length){e.hidden=false;e.textContent='Pominięto: '+bad.slice(0,4).join(', ')+(bad.length>4?'…':'')+' (to nie są liczby).'}else e.hidden=true;
+  if(out.length<2){e.hidden=false;e.textContent='Wpisz co najmniej 2 liczby.';return}
+  const S=stats(out);lastS=S;
+  $('#vM').textContent=pl(S.M);$('#vMe').textContent=plv(S.Me);
+  $('#vMo').textContent=S.modes.length?S.modes.map(plv).join(' i ')+` (${S.modeCount}×)`:'brak – każda wartość występuje raz';
+  $('#vSD').textContent=pl(S.SD);$('#vR').textContent=plv(S.R);$('#vMM').textContent=plv(S.min)+' – '+plv(S.max);
+  $('#vQ').textContent=plv(S.Q1)+' · '+plv(S.Q3)+' · '+plv(S.IQR);
+  $('#vSKE').textContent=pl(S.SKE);$('#vK').textContent=pl(S.K);$('#vN').textContent=S.n;
+  const [sl,sc]=skeLab(S.SKE),[kl,kc]=kLab(S.K);$('#pSKE').innerHTML=sl?`<span class="pill ${sc}">${sl}</span>`:'';$('#pK').innerHTML=kl?`<span class="pill ${kc}">${kl}</span>`:'';
+  drawHist(S);drawBox(S);describe(S);checkCh(S)}
+$('#data').addEventListener('input',()=>{custom=true;$$('#presets .btn').forEach(b=>b.classList.remove('sel'));$('#presetNote').textContent='Twoje własne dane.';update()});
+['#tM','#tMe','#tSD','#tLim'].forEach(s=>$(s).onchange=()=>lastS&&(drawHist(lastS),drawBox(lastS)));
+function addVal(){const v=$('#addVal').value.trim();if(!v)return;$('#data').value=($('#data').value.trim()+' '+v).trim();$('#addVal').value='';$('#data').dispatchEvent(new Event('input'))}
+$('#addBtn').onclick=addVal;$('#addVal').onkeydown=e=>{if(e.key==='Enter')addVal()};
+$('#popBtn').onclick=()=>{const p=$('#data').value.trim().split(/[\s;]+/);p.pop();$('#data').value=p.join(' ');$('#data').dispatchEvent(new Event('input'))};
+$('#sortBtn').onclick=()=>{const {out}=parse($('#data').value);$('#data').value=out.sort((a,b)=>a-b).map(v=>String(v).replace('.',',')).join(' ');update()};
+$('#copy').onclick=()=>{const t=$('#apa').textContent;const b=$('#copy');
+  const ok=()=>{b.textContent='Skopiowano';setTimeout(()=>b.textContent='Kopiuj',1500)};
+  try{navigator.clipboard.writeText(t).then(ok,()=>{selectApa();b.textContent='Zaznaczono – Ctrl+C'})}catch(e){selectApa()}};
+function selectApa(){const r=document.createRange();r.selectNodeContents($('#apa'));const s=getSelection();s.removeAllRanges();s.addRange(r)}
+
+/* --- quiz --- */
+const Q=[
+ ['Wynik, który w zbiorze występuje najczęściej, to…',['średnia','mediana','modalna'],2,'Modalna (dominanta) to najczęstsza wartość.'],
+ ['Odchylenie standardowe jest małe. To znaczy, że…',['wyniki są podobne do średniej','wyniki mocno się różnią','rozkład jest skośny'],0,'Małe SD: większość wyników leży blisko średniej.'],
+ ['Kurtoza wynosi K = 1,2. Rozkład jest…',['bardziej szpiczasty','bardziej wypłaszczony','symetryczny'],0,'K > 0 oznacza rozkład leptokurtyczny, czyli szpiczasty.'],
+ ['Skośność wynosi SKE = 0,9. Rozkład jest…',['lewoskośny','prawoskośny','normalny'],1,'SKE > 0: długi ogon po prawej stronie.'],
+ ['Q1 = 30, Q3 = 40. Ile wynosi IQR?',['10','35','70'],0,'IQR = Q3 − Q1 = 40 − 30 = 10.'],
+ ['Q1 = 34, Q3 = 42. Od jakiego wyniku w dół wynik będzie odstający?',['poniżej 22','poniżej 30','poniżej 34'],0,'Dolny limit: 34 − 1,5 × 8 = 22.'],
+ ['Do 10 wyników dopisujemy jeden bardzo wysoki. Co zmieni się bardziej?',['mediana','średnia','obie tak samo'],1,'Średnia jest wrażliwa na wartości odstające, mediana prawie się nie rusza.']];
+function buildQuiz(){const box=$('#quiz');box.innerHTML='';
+  Q.forEach(([q,o,a,why])=>{const d=document.createElement('div');d.className='q';d.innerHTML=`<b>${q}</b><div class="opts"></div><div class="why" hidden></div>`;const op=d.querySelector('.opts');
+    o.forEach((t,i)=>{const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=t;b.onclick=()=>{if(d.dataset.done)return;d.dataset.done=1;op.children[a].classList.add('ok');if(i!==a)b.classList.add('no');else d.dataset.ok=1;const w=d.querySelector('.why');w.hidden=false;w.textContent=why;score()};op.appendChild(b)});box.appendChild(d)});score()}
+function score(){$('#qScore').textContent=$$('#quiz .q[data-ok]').length+' / '+Q.length}
+$('#qReset').onclick=buildQuiz;buildQuiz();
+
+load(current);
+})();
+</script>
+
+</body>
+</html>
