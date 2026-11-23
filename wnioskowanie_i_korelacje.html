@@ -483,7 +483,7 @@ html:not(.static) .static-only{display:none!important}
 <section class="slide" data-title="Krok 4: maszyna do powtarzania badań">
  <div class="inner">
   <h2>Krok 4: a gdyby różnicy nie było?</h2>
-  <p style="font-size:.85em"><b>Wyobraźmy sobie</b>, że <b>wiemy na pewno</b>, że kobiety i mężczyźni na Placu Wolności mają taką samą średnią samoocenę – np. 29,5 punktu w obu grupach (H<sub>0</sub> jest prawdziwa). Powtarzamy badanie na 30 kobietach i 30 mężczyznach wiele razy i za każdym razem liczymy t.</p>
+  <p style="font-size:.85em"><b>Wyobraźmy sobie</b>, że <b>wiemy na pewno</b>, że kobiety i mężczyźni na Placu Wolności mają taką samą średnią samoocenę – np. 30 punktów w obu grupach (H<sub>0</sub> jest prawdziwa). Powtarzamy badanie na 30 kobietach i 30 mężczyznach wiele razy i za każdym razem liczymy t.</p>
   <div class="lab">
    <div class="ctrl">
     <div class="row"><button class="btn" type="button" id="m1">Zbadaj 1 raz</button><button class="btn" type="button" id="m100">+ 100</button><button class="btn" type="button" id="m10k">+ 10 000</button><button class="btn" type="button" id="m0">Od nowa</button></div>
@@ -1124,10 +1124,10 @@ const fr=(a,b)=>`<mfrac displaystyle="true"><mrow>${a}</mrow><mrow>${b}</mrow></
    '<mo>≈</mo>'+fr(mn(3),mn('0,658')),'<mo>≈</mo><mn mathcolor="#e3201b" style="font-weight:700">4,56</mn>'];
   let k=STATIC?S.length:1;const box=byId('tform'),b=byId('tstep');const r=()=>{box.innerHTML='<math style="font-size:1.45em"><mrow>'+S.slice(0,k).join('')+'</mrow></math>';if(b)b.disabled=k>=S.length};r();if(b)b.onclick=()=>{k=Math.min(S.length,k+1);r()}})();
 
-/* ---------- 7. maszyna do powtarzania badań (świat H0: 29,5 pkt w obu grupach) ---------- */
+/* ---------- 7. maszyna do powtarzania badań (świat H0: 30 pkt w obu grupach) ---------- */
 const DFW=50.5;
 (function(){const r=RNG(2025);let T=[],log=[],th=STATIC;const svg=byId('mplot');
-  function one(){const a=[],b=[];for(let i=0;i<30;i++){a.push(29.5+3*r.n());b.push(29.5+2*r.n())}const s=tWelch(a,b);const ma=a.reduce((x,y)=>x+y)/30,mb=b.reduce((x,y)=>x+y)/30;T.push(s.t);return {t:s.t,ma,mb}}
+  function one(){const a=[],b=[];for(let i=0;i<30;i++){a.push(30+3*r.n());b.push(30+2*r.n())}const s=tWelch(a,b);const ma=a.reduce((x,y)=>x+y)/30,mb=b.reduce((x,y)=>x+y)/30;T.push(s.t);return {t:s.t,ma,mb}}
   function draw(last){const h=histo(T,-5,5,0.2);const mx=Math.max(0.42,...h.dens);
     plot(svg,{xmin:-5,xmax:5,ymax:mx,hist:h,xticks:tickRange(-5,5,1),xlab:'wartość statystyki t',curves:th?[{f:x=>tPdf(x,DFW),color:C.blue}]:[],
       vlines:last!=null?[{x:last,color:C.red,label:'t = '+pls(last,2),anchor:last>0?'end':'start',w:5}]:[]});
