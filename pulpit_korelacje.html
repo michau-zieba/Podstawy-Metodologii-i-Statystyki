@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pulpit korelacji</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Caveat+Brush&display=swap">
+<style>
+
+/* Layout: notebook-style pulpit — sticky data panel on the left, live stat tiles + charts on the right, practice below. Single light look, same as the class decks. */
+:root{
+  --paper:#ffffff; --ink:#111111; --soft:#5d5a63; --line:#e6e3ea;
+  --red:#e3201b; --yellow:#ffc21a; --blue:#1f78c8; --green:#22a447;
+  --yellowBg:#fff6d6; --blueBg:#e6f1fb; --redBg:#fde6e5; --greenBg:#e5f6ea;
+  --f-display:"Titan One","Arial Black",Impact,sans-serif;
+  --f-body:"Courier Prime","Courier New",Courier,monospace;
+  --f-hand:"Caveat Brush","Comic Sans MS",cursive;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;margin:0}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;line-height:1.1}
+h1{font-size:clamp(1.9rem,4.5vw,3rem)}
+h2{font-size:clamp(1.35rem,2.6vw,1.8rem)}
+h3{font-size:1.1rem}
+p{margin:0}
+.eyebrow{font-weight:700;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.hand{font-family:var(--f-hand);font-size:1.5em;line-height:1}
+.tn{font-variant-numeric:tabular-nums}
+button,input,textarea,select{font:inherit;color:inherit}
+.btn{background:var(--paper);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);padding:.3em .75em;font-weight:700;cursor:pointer;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.btn.sel{background:var(--ink);color:var(--paper)}
+.btn:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* header */
+header.top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:end;border-bottom:6px solid var(--ink);padding-bottom:18px}
+header.top .credit{text-align:right;font-size:.9rem}
+header.top .credit b{display:inline-block;border-bottom:5px solid var(--yellow);line-height:1.1}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.9rem}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{width:14px;height:14px;border:2px solid var(--ink);display:inline-block}
+
+/* main grid */
+.main{display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr);gap:24px;align-items:start}
+.panel{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--yellow);padding:16px;display:flex;flex-direction:column;gap:12px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);background:var(--paper)}
+.vals-head{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;font-weight:700;color:var(--soft)}
+.vals{display:flex;flex-wrap:wrap;gap:4px;max-height:240px;overflow-y:auto;background:var(--yellowBg);border:2px solid var(--ink);padding:8px}
+.vals span{border:1.5px solid var(--ink);background:var(--paper);padding:0 .35em;font-size:.85rem;cursor:pointer}
+.vals span.out{background:var(--ink);color:var(--paper)}
+.vals span.on{background:var(--red);color:var(--paper);border-color:var(--red)}
+.panel .hint{font-size:.82rem;color:var(--soft)}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets .btn{font-size:.8rem;padding:.15em .5em;box-shadow:2px 2px 0 var(--ink)}
+.err{color:var(--red);font-weight:700;font-size:.85rem}
+.add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+.add input{border:2px solid var(--ink);padding:.25em .5em;min-width:0}
+
+.right{display:flex;flex-direction:column;gap:22px;min-width:0}
+.groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.group{border:3px solid var(--ink);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.group.c{box-shadow:6px 6px 0 var(--yellow)} .group.d{box-shadow:6px 6px 0 var(--blue)} .group.s{box-shadow:6px 6px 0 var(--red)}
+.group h3 .hand{font-size:1.2em;margin-right:4px}
+.group.c h3 .hand{color:#c78f00}.group.d h3 .hand{color:var(--blue)}.group.s h3 .hand{color:var(--red)}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tile{border-top:2px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:0;cursor:help;min-width:0}
+.tile .k{font-size:.78rem;color:var(--soft);font-weight:700}
+.tile .v{font-family:var(--f-display);font-size:1.45rem;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile .v.small{font-size:1.05rem}
+.tile.full{grid-column:1/-1}
+.tile[aria-expanded="true"] .k{color:var(--ink)}
+.tipbox{font-size:.85rem;background:var(--blueBg);border-left:5px solid var(--blue);padding:8px 10px}
+.pill{display:inline-block;border:2px solid currentColor;padding:0 .45em;font-weight:700;font-size:.8rem;line-height:1.5}
+.pill.g{color:#16773a;background:var(--greenBg)}.pill.y{color:#8a5f00;background:var(--yellowBg)}.pill.r{color:#b3150f;background:var(--redBg)}.pill.b{color:#145a96;background:var(--blueBg)}
+
+.charts{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+.card{border:3px solid var(--ink);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card svg{width:100%;height:auto;display:block}
+.card svg text{font-family:var(--f-body);fill:var(--ink)}
+.toggles{display:flex;flex-wrap:wrap;gap:12px;font-size:.85rem;font-weight:700}
+.toggles label{display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+
+.readout{border:3px solid var(--ink);background:var(--yellowBg);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.readout .apa{background:var(--paper);border:2px dashed var(--ink);padding:8px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.readout .apa .btn{font-size:.8rem;padding:.1em .5em;box-shadow:2px 2px 0 var(--ink)}
+
+/* practice */
+.section{display:flex;flex-direction:column;gap:14px}
+.section > header{display:flex;flex-direction:column;gap:4px}
+.lab{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:20px;align-items:start}
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.tasks button{width:100%;text-align:left;border:3px solid var(--ink);background:var(--paper);padding:8px 10px;cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center}
+.tasks button:hover{background:var(--yellowBg)}
+.tasks button[aria-pressed="true"]{box-shadow:5px 5px 0 var(--red);background:var(--yellowBg)}
+.tasks button.done{background:var(--greenBg)}
+.tasks .n{font-family:var(--f-display);font-size:1.3rem;width:1.6em;text-align:center}
+.tasks button.done .n{color:#16773a}
+.tasks .tt{font-weight:700;font-size:.92rem;line-height:1.25}
+.labcard{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--red);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.labcard svg{width:100%;height:auto;display:block}
+.labcard svg text{font-family:var(--f-body);fill:var(--ink)}
+.taskbox{background:var(--yellowBg);border:2px solid var(--ink);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.taskbox.ok{background:var(--greenBg)}
+.conds{display:flex;flex-wrap:wrap;gap:6px}
+.sliders{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 20px}
+.sliders label{display:flex;flex-direction:column;gap:2px;font-weight:700;font-size:.9rem}
+.sliders small{font-weight:400;color:var(--soft)}
+.sliders input{width:100%;accent-color:var(--red)}
+.labstats{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.95rem}
+@media (max-width:820px){.lab{grid-template-columns:1fr}.sliders{grid-template-columns:1fr}}
+.ch{border:3px solid var(--ink);padding:10px 12px;display:flex;flex-direction:column;gap:6px;transition:background .25s}
+.ch.done{background:var(--greenBg)}
+.ch .st{font-weight:700;font-size:.85rem}
+.ch.done .st{color:#16773a}
+.ch .st::before{content:"☐ "}
+.ch.done .st::before{content:"☑ "}
+.score{font-family:var(--f-display);font-size:1.4rem}
+
+.cheat-wrap{overflow-x:auto;border:3px solid var(--ink)}
+table.cheat{border-collapse:collapse;width:100%;min-width:720px;font-size:.92rem}
+table.cheat th{background:var(--ink);color:var(--paper);text-align:left;padding:.45em .7em}
+table.cheat td{padding:.45em .7em;border-top:2px solid var(--line);vertical-align:top}
+table.cheat td:first-child{font-weight:700;white-space:nowrap}
+table.cheat tr.sec td{background:var(--yellowBg);font-family:var(--f-display);font-weight:400;border-top:3px solid var(--ink)}
+
+.quiz{display:flex;flex-direction:column;gap:12px}
+.q{border-bottom:2px solid var(--line);padding-bottom:10px;display:flex;flex-direction:column;gap:6px}
+.q .opts{display:flex;flex-wrap:wrap;gap:6px}
+.q .opts .btn{font-size:.85rem;padding:.15em .55em;box-shadow:2px 2px 0 var(--ink)}
+.q .opts .btn.ok{background:var(--green);border-color:var(--green);color:var(--paper)}
+.q .opts .btn.no{background:var(--red);border-color:var(--red);color:var(--paper)}
+.q .why{font-size:.85rem;color:var(--soft)}
+
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.jam{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--blue);padding:14px;display:flex;flex-direction:column;gap:8px}
+.path{font-weight:700;background:var(--blueBg);padding:.2em .5em;display:inline-block}
+footer{border-top:6px solid var(--ink);padding-top:12px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:.85rem;color:var(--soft)}
+
+@media (max-width:1050px){.groups{grid-template-columns:1fr}.charts{grid-template-columns:1fr}}
+@media (max-width:820px){.main{grid-template-columns:1fr}.panel{position:static}.two{grid-template-columns:1fr}header.top{grid-template-columns:1fr}header.top .credit{text-align:left}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---- pulpit korelacji ---- */
+.panel{gap:10px}
+.sl{display:flex;flex-direction:column;gap:2px}
+.sl .lbl{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:.88rem}
+.sl output{font-family:var(--f-display);font-weight:400;color:var(--red);font-size:1.1rem}
+.sl input{width:100%;accent-color:var(--red)}
+.sl small{color:var(--soft);font-size:.76rem;line-height:1.3}
+.names{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+.names label{display:flex;flex-direction:column;font-size:.75rem;font-weight:700;color:var(--soft)}
+.names input{border:2px solid var(--ink);padding:.15em .4em;min-width:0;font-size:.85rem;color:var(--ink)}
+.chk{display:flex;gap:6px;align-items:center;font-size:.85rem;font-weight:700;cursor:pointer}
+.group.a{box-shadow:6px 6px 0 var(--green)}
+.group.a h3 .hand{color:var(--green)}
+.rec{font-size:.9rem;border-left:5px solid var(--ink);padding:6px 10px;background:var(--yellowBg)}
+.rec.p{border-color:var(--blue);background:var(--blueBg)}
+.rec.s{border-color:var(--red);background:var(--redBg)}
+.charts3{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+.hists{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.card .pt{cursor:grab}
+.card svg.sc{touch-action:none;cursor:crosshair}
+.tipline{font-size:.82rem;color:var(--soft);min-height:1.3em}
+.warnbox{font-size:.88rem;background:var(--redBg);border-left:5px solid var(--red);padding:8px 10px}
+.chgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:12px}
+.guess{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:20px;align-items:start}
+.guess .ctl{display:flex;flex-direction:column;gap:10px}
+.verdict{font-weight:700;font-size:.9rem;border-left:6px solid var(--soft);padding:.3em .7em}
+.verdict.good{border-color:var(--green);background:var(--greenBg)}
+.verdict.warn{border-color:var(--yellow);background:var(--yellowBg)}
+.verdict.bad{border-color:var(--red);background:var(--redBg)}
+.ex{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--yellow);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.exhead{display:flex;justify-content:space-between;align-items:end;gap:10px}
+.extabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:3px solid var(--ink);padding-bottom:10px}
+.extabs button{border:3px solid var(--ink);background:var(--paper);font-weight:700;padding:.2em .7em;cursor:pointer;font-size:.9rem}
+.extabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+.extabs button.done{background:var(--greenBg);color:#16773a;border-color:#16773a}
+.extabs button.done[aria-selected="true"]{background:#16773a;color:#fff}
+.extask{font-size:1.15rem;font-weight:700;line-height:1.35}
+.exgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start}
+.excol{display:flex;flex-direction:column;gap:12px;min-width:0}
+.explot{padding:8px}
+@media (max-width:900px){.exgrid{grid-template-columns:1fr}}
+.exsl{border:3px solid var(--ink);background:var(--yellowBg);padding:8px 12px}
+.exsl .lbl{font-size:1rem}
+.exlive{font-size:.95rem;font-variant-numeric:tabular-nums}
+.exhintbox{background:var(--blueBg);border-left:5px solid var(--blue);padding:8px 10px;font-size:.92rem}
+.exok{background:var(--greenBg);border-left:5px solid var(--green);padding:8px 10px;font-size:.95rem}
+@media (max-width:1050px){.charts3{grid-template-columns:1fr}}
+@media (max-width:820px){.guess{grid-template-columns:1fr}.hists{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+ <div style="display:flex;flex-direction:column;gap:8px">
+  <div class="eyebrow">Statystyka w psychologii: korelacje</div>
+  <h1>Pulpit korelacji: Pearson i Spearman</h1>
+  <p style="max-width:62ch">Ustaw dane suwakami albo wybierz gotowy przykład. Na wykresie możesz <b>kliknąć</b>, żeby dodać osobę, i <b>przeciągać</b> kropki. Pulpit od razu policzy oba współczynniki, sprawdzi założenia i podpowie, którego użyć.</p>
+  <div class="legend"><span><i style="background:var(--blue)"></i>r Pearsona</span><span><i style="background:var(--red)"></i>rho Spearmana</span><span><i style="background:var(--green)"></i>założenia</span></div>
+ </div>
+ <div class="credit"><b>mgr Michał Zięba</b><br>USWPS Poznań – materiały dydaktyczne</div>
+</header>
+
+<div class="main">
+ <aside class="panel" aria-labelledby="dataH">
+  <h2 id="dataH">Twoje dane</h2>
+  <div class="hint">Gotowe przykłady:</div>
+  <div class="presets" id="presets"></div>
+  <div class="names"><label>Zmienna X<input id="nameX" value="samoocena"></label><label>Zmienna Y<input id="nameY" value="dobrostan"></label></div>
+  <div class="sl"><div class="lbl">Siła związku <output id="oR"></output></div><input type="range" id="sR" min="-1" max="1" step="0.05" value="0.45" aria-label="Siła związku"><small>korelacja „ukryta” w danych, zanim dodasz krzywiznę, skośność i odstające</small></div>
+  <div class="sl"><div class="lbl">Liczba osób <output id="oN"></output></div><input type="range" id="sN" min="5" max="300" step="1" value="50" aria-label="Liczba osób"></div>
+  <div class="sl"><div class="lbl">Krzywizna <output id="oC"></output></div><input type="range" id="sC" min="0" max="1" step="0.05" value="0" aria-label="Krzywizna związku"><small>Y rośnie razem z X, ale coraz szybciej (związek monotoniczny, nieliniowy)</small></div>
+  <div class="sl"><div class="lbl">Skośność obu zmiennych <output id="oS"></output></div><input type="range" id="sS" min="0" max="1" step="0.05" value="0" aria-label="Skośność zmiennych"><small>wydłuża prawy ogon rozkładu X i Y</small></div>
+  <div class="sl"><div class="lbl">Osoby odstające <output id="oO"></output></div><input type="range" id="sO" min="0" max="3" step="1" value="0" aria-label="Liczba osób odstających"><small>dodaje bardzo wysokie wyniki w obu zmiennych (prawy górny róg)</small></div>
+  <label class="chk"><input type="checkbox" id="ord"> X jest na skali porządkowej</label>
+  <div class="row"><button class="btn" type="button" id="reseed">Losuj nowe osoby</button><button class="btn" type="button" id="undo">Usuń ostatnią</button></div>
+  <div class="hint" id="nInfo"></div>
+ </aside>
+
+ <div class="right">
+  <div class="groups">
+   <section class="group d" aria-labelledby="gP"><h3 id="gP"><span class="hand">r</span> Pearson</h3>
+    <div class="tiles">
+     <div class="tile full"><span class="k">współczynnik r</span><span class="v" id="tR">–</span></div>
+     <div class="tile"><span class="k">p</span><span class="v small" id="tRp">–</span></div>
+     <div class="tile"><span class="k">siła</span><span class="v small" id="tRs">–</span></div>
+    </div></section>
+   <section class="group s" aria-labelledby="gS"><h3 id="gS"><span class="hand">ρ</span> Spearman</h3>
+    <div class="tiles">
+     <div class="tile full"><span class="k">współczynnik rho</span><span class="v" id="tH">–</span></div>
+     <div class="tile"><span class="k">p</span><span class="v small" id="tHp">–</span></div>
+     <div class="tile"><span class="k">siła</span><span class="v small" id="tHs">–</span></div>
+    </div></section>
+   <section class="group a" aria-labelledby="gA"><h3 id="gA"><span class="hand">✓</span> Założenia Pearsona</h3>
+    <div class="tiles">
+     <div class="tile"><span class="k" id="kSX">normalność X</span><span class="v small" id="tSX">–</span></div>
+     <div class="tile"><span class="k" id="kSY">normalność Y</span><span class="v small" id="tSY">–</span></div>
+     <div class="tile"><span class="k">wartości odstające</span><span class="v small" id="tOut">–</span></div>
+     <div class="tile"><span class="k">skala X</span><span class="v small" id="tScale">–</span></div>
+    </div></section>
+  </div>
+  <div class="rec" id="rec"></div>
+
+  <div class="charts3">
+   <div class="card"><h3>Wykres punktowy</h3>
+    <div class="toggles"><label><input type="checkbox" id="tgLine" checked> linia trendu</label><label><input type="checkbox" id="tgMean"> średnie</label></div>
+    <svg class="sc" id="sc" viewBox="0 0 640 440" role="img" aria-label="Wykres punktowy danych"></svg>
+    <div class="tipline" id="tip">Kliknij puste miejsce, żeby dodać osobę. Przeciągnij kropkę, żeby ją przesunąć.</div></div>
+   <div class="card"><h3>Te same dane w rangach</h3>
+    <svg id="rk" viewBox="0 0 440 440" role="img" aria-label="Wykres punktowy rang"></svg>
+    <div class="tipline">Spearman to Pearson policzony na tym wykresie. Rangi „prostują” krzywe związki i przyciągają odstające do reszty.</div></div>
+  </div>
+  <div class="hists">
+   <div class="card"><h3 id="hXh">Rozkład X</h3><svg id="hX" viewBox="0 0 440 200" role="img" aria-label="Histogram zmiennej X"></svg></div>
+   <div class="card"><h3 id="hYh">Rozkład Y</h3><svg id="hY" viewBox="0 0 440 200" role="img" aria-label="Histogram zmiennej Y"></svg></div>
+  </div>
+
+  <section class="ex" aria-labelledby="exH">
+   <div class="exhead"><div><div class="eyebrow">Ćwiczenia na żywo</div><h2 id="exH">Zadanie po zadaniu</h2></div><span class="score" id="chScore">0 / 6</span></div>
+   <div class="extabs" role="tablist" id="exTabs"></div>
+   <div class="exbody" role="tabpanel" id="exBody">
+    <div class="exgrid"><div class="excol">
+    <p class="extask" id="exTask"></p>
+    <div class="sl exsl"><div class="lbl"><span id="exSlL"></span> <output id="exSlO"></output></div><input type="range" id="exSl" aria-label="Suwak do zadania"></div>
+    <div class="exlive" id="exLive"></div>
+    <div class="row"><button class="btn" type="button" id="exHint">Podpowiedź</button><button class="btn" type="button" id="exNext">Następne zadanie →</button></div>
+    <p class="exhintbox" id="exHintBox" hidden></p>
+    <p class="exok" id="exOk" hidden></p>
+    </div>
+    <div class="card explot"><svg id="exSc" viewBox="0 0 560 400" role="img" aria-label="Wykres punktowy do ćwiczenia"></svg></div>
+    </div>
+   </div>
+  </section>
+  <div class="readout"><h3>Jak to opisać?</h3><p id="desc"></p>
+   <div class="apa"><span id="apa"></span><button class="btn" type="button" id="copy">Kopiuj</button></div></div>
+ </div>
+</div>
+
+
+
+<section class="section" aria-labelledby="gH">
+ <header><div class="eyebrow">Wyczucie</div><h2 id="gH">Zgadnij korelację</h2></header>
+ <div class="guess">
+  <div class="ctl">
+   <div class="sl"><div class="lbl">Twoja odpowiedź <output id="gO">0,00</output></div><input type="range" id="gS" min="-1" max="1" step="0.05" value="0" aria-label="Twoja odpowiedź"></div>
+   <div class="row"><button class="btn" type="button" id="gCheck">Sprawdź</button><button class="btn" type="button" id="gNext">Następny</button></div>
+   <div class="verdict" id="gV">Ustaw suwak i sprawdź.</div>
+   <div><span class="score" id="gScore">0 / 0</span> <span class="hint">trafień (do 0,1)</span></div>
+  </div>
+  <div class="card" style="max-width:720px"><svg id="gPlot" viewBox="0 0 640 420" role="img" aria-label="Wykres do odgadnięcia korelacji"></svg></div>
+ </div>
+</section>
+
+<section class="section" aria-labelledby="cH">
+ <header><div class="eyebrow">Ściąga</div><h2 id="cH">Pearson i Spearman w jednym miejscu</h2></header>
+ <div class="cheat-wrap"><table class="cheat">
+  <thead><tr><th></th><th>r Pearsona</th><th>rho Spearmana</th></tr></thead>
+  <tbody>
+   <tr class="sec"><td colspan="3">Co mierzy</td></tr>
+   <tr><td>Rodzaj związku</td><td><b>liniowy</b>: punkty układają się wzdłuż prostej</td><td><b>monotoniczny</b>: gdy X rośnie, Y rośnie (albo maleje), niekoniecznie po prostej</td></tr>
+   <tr><td>Jak liczy</td><td>na surowych wynikach</td><td>zamienia wyniki na rangi i liczy Pearsona na rangach</td></tr>
+   <tr><td>Zakres</td><td colspan="2">od −1 do 1. Znak = kierunek, wartość bezwzględna = siła. Progi Cohena: 0,1 słaby, 0,3 umiarkowany, 0,5 silny</td></tr>
+   <tr class="sec"><td colspan="3">Kiedy stosować</td></tr>
+   <tr><td>Skala</td><td>obie zmienne ilościowe</td><td>co najmniej porządkowa (np. miejsce w konkursie)</td></tr>
+   <tr><td>Rozkłady</td><td>zbliżone do normalnego (Shapiro-Wilk p &gt; 0,05, skośność i kurtoza w granicach ±1)</td><td>dowolne, także silnie skośne</td></tr>
+   <tr><td>Wartości odstające</td><td>bardzo wrażliwy: jedna osoba może zmienić wynik</td><td>odporny: odstająca osoba to tylko najwyższa ranga</td></tr>
+   <tr class="sec"><td colspan="3">Istotność i zapis</td></tr>
+   <tr><td>Wartość p</td><td colspan="2">p &lt; 0,05: związek istotny. To samo r może być nieistotne przy małej próbie i istotne przy dużej</td></tr>
+   <tr><td>Zapis APA</td><td><i>r</i>(48) = 0,45; <i>p</i> = 0,001</td><td><i>r<sub>s</sub></i>(48) = 0,41; <i>p</i> = 0,003</td></tr>
+   <tr><td>Uwaga</td><td colspan="2">Korelacja ≠ przyczynowość. Korelacja bliska 0 nie wyklucza związku o innym kształcie (np. U). Zawsze obejrzyj wykres punktowy</td></tr>
+  </tbody></table></div>
+</section>
+
+<div class="two">
+ <section class="section" aria-labelledby="qH"><header><div class="eyebrow">Sprawdź się</div><h2 id="qH">Szybki quiz</h2></header>
+  <div class="quiz" id="quiz"></div><div class="row"><span class="score" id="qScore">0 / 8</span><button class="btn" type="button" id="qReset" style="font-size:.8rem">Od nowa</button></div></section>
+ <section class="section" aria-labelledby="jH"><header><div class="eyebrow">W programie</div><h2 id="jH">Jak to zrobić?</h2></header>
+  <div class="jam"><h3>Jamovi: korelacje</h3><span class="path">Analizy → Regresja → Macierz korelacji</span><p>Przenieś zmienne do pola po prawej i zaznacz <b>r Pearsona</b> albo <b>rho Spearmana</b>. Zostaw <b>Wyświetl istotność statystyczną</b>. Hipoteza „Skorelowane” to test dwustronny. <b>Wykres → Macierz korelacji</b> rysuje wykresy punktowe.</p></div>
+  <div class="jam"><h3>Jamovi: normalność</h3><span class="path">Analizy → Eksploracja → Statystyki opisowe</span><p>W części <b>Normalność</b> zaznacz <b>Test Shapiro-Wilka</b>, w <b>Miarach rozkładu</b> – <b>Skośność</b> i <b>Kurtozę</b>, a w <b>Wykresach</b> – <b>Histogram</b>. Sprawdź obie zmienne.</p></div>
+  <div class="jam"><h3>Jak czytać tabelę?</h3><p>Jamovi podaje <b>r</b>, <b>df</b> (liczba osób − 2) i <b>wartość p</b>, z kropką dziesiętną: 0.24, 148, .004. W pracy piszesz: <i>r</i>(148) = 0,24; <i>p</i> = 0,004.</p></div>
+  <div class="jam"><h3>Pamiętaj w pracy</h3><p>W tekście piszesz przecinek dziesiętny i kursywę: <i>r</i>(48) = 0,45; <i>p</i> = 0,001. Przy wielu zmiennych podaj tabelę korelacji.</p></div>
+ </section>
+</div>
+
+<footer><span>mgr Michał Zięba, USWPS Poznań – materiały dydaktyczne</span><span>Wnioskowanie statystyczne i korelacje</span></footer>
+</div>
+
+<script>
+(function(){
+/* ---- statystyka: rozkłady, losowanie, testy ---- */
+function lgamma(x){const g=7,c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  if(x<0.5)return Math.log(Math.PI/Math.sin(Math.PI*x))-lgamma(1-x);x-=1;let a=c[0];const t=x+g+0.5;for(let i=1;i<9;i++)a+=c[i]/(x+i);return 0.5*Math.log(2*Math.PI)+(x+0.5)*Math.log(t)-t+Math.log(a)}
+function betacf(x,a,b){const MAXIT=300,EPS=3e-14,FPMIN=1e-300;let qab=a+b,qap=a+1,qam=a-1,c=1,d=1-qab*x/qap;if(Math.abs(d)<FPMIN)d=FPMIN;d=1/d;let h=d;
+  for(let m=1;m<=MAXIT;m++){const m2=2*m;let aa=m*(b-m)*x/((qam+m2)*(a+m2));d=1+aa*d;if(Math.abs(d)<FPMIN)d=FPMIN;c=1+aa/c;if(Math.abs(c)<FPMIN)c=FPMIN;d=1/d;h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));d=1+aa*d;if(Math.abs(d)<FPMIN)d=FPMIN;c=1+aa/c;if(Math.abs(c)<FPMIN)c=FPMIN;d=1/d;const del=d*c;h*=del;if(Math.abs(del-1)<EPS)break}return h}
+function ibeta(x,a,b){if(x<=0)return 0;if(x>=1)return 1;const bt=Math.exp(lgamma(a+b)-lgamma(a)-lgamma(b)+a*Math.log(x)+b*Math.log(1-x));
+  return x<(a+1)/(a+b+2)?bt*betacf(x,a,b)/a:1-bt*betacf(1-x,b,a)/b}
+const tPdf=(t,df)=>Math.exp(lgamma((df+1)/2)-lgamma(df/2)-0.5*Math.log(df*Math.PI)-(df+1)/2*Math.log(1+t*t/df));
+const tP2=(t,df)=>ibeta(df/(df+t*t),df/2,0.5);            /* dwustronne p */
+const tP1=(t,df)=>t>=0?tP2(t,df)/2:1-tP2(t,df)/2;          /* jednostronne p (prawy ogon) */
+const fPdf=(x,d1,d2)=>x<=0?0:Math.exp(0.5*(d1*Math.log(d1*x)+d2*Math.log(d2)-(d1+d2)*Math.log(d1*x+d2))-Math.log(x)-(lgamma(d1/2)+lgamma(d2/2)-lgamma((d1+d2)/2)));
+const fSf=(x,d1,d2)=>x<=0?1:ibeta(d2/(d2+d1*x),d2/2,d1/2);
+const nPdf=x=>Math.exp(-x*x/2)/Math.sqrt(2*Math.PI);
+function nSf(z){/* P(Z>z) */const t=1/(1+0.2316419*Math.abs(z));const d=0.3989422804014327*Math.exp(-z*z/2);
+  const p=d*t*(0.31938153+t*(-0.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));return z>0?p:1-p}
+function tCrit(df,a){let lo=0,hi=50;for(let i=0;i<80;i++){const m=(lo+hi)/2;if(tP2(m,df)>a)lo=m;else hi=m}return (lo+hi)/2}
+function fCrit(d1,d2,a){let lo=0,hi=200;for(let i=0;i<90;i++){const m=(lo+hi)/2;if(fSf(m,d1,d2)>a)lo=m;else hi=m}return (lo+hi)/2}
+
+/* generator z ziarnem: te same wyniki przy każdym otwarciu */
+function RNG(seed){let s=seed>>>0||1;const u=()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};
+  let spare=null;const n=()=>{if(spare!==null){const v=spare;spare=null;return v}let a,b,r;do{a=2*u()-1;b=2*u()-1;r=a*a+b*b}while(r>=1||r===0);const m=Math.sqrt(-2*Math.log(r)/r);spare=b*m;return a*m};
+  const gam=k=>{if(k<1)return gam(k+1)*Math.pow(u(),1/k);const d=k-1/3,c=1/Math.sqrt(9*d);for(;;){let x,v;do{x=n();v=1+c*x}while(v<=0);v=v*v*v;const uu=u();if(uu<1-0.0331*x*x*x*x||Math.log(uu)<0.5*x*x+d*(1-v+Math.log(v)))return d*v}};
+  return {u,n,gam}}
+
+/* populacje: każda ma średnią 0 i odchylenie standardowe 1 (H0 prawdziwa, gdy grupy losujemy z tej samej) */
+const POPS={
+  normal:{name:'normalny',draw:r=>r.n()},
+  skew:{name:'lekko skośny',draw:r=>(2*r.gam(4)-8)/4},                         /* chi²(8): skośność 1 */
+  exp:{name:'silnie skośny',draw:r=>-Math.log(1-r.u())-1},                      /* wykładniczy: skośność 2 */
+  logn:{name:'skrajnie skośny',draw:r=>(Math.exp(r.n())-1.6487212707)/2.1611974158}, /* log-normalny σ=1: skośność 6,2 */
+  heavy:{name:'grube ogony',draw:r=>{const z=r.n(),c=2*r.gam(1.5);return z/Math.sqrt(c/3)/Math.sqrt(3)}}, /* t(3) */
+  unif:{name:'płaski',draw:r=>(r.u()-0.5)*3.4641016151},
+  bimod:{name:'dwumodalny',draw:r=>((r.u()<0.5?-1.5:1.5)+0.5*r.n())/1.5811388301},
+  outl:{name:'z wartościami odstającymi',draw:r=>(r.u()<0.05?5*r.n():r.n())/1.4832396974}
+};
+
+/* statystyki testowe */
+function meanVar(a){let m=0;for(const v of a)m+=v;m/=a.length;let s=0;for(const v of a)s+=(v-m)*(v-m);return [m,s/(a.length-1)]}
+function tStudent(a,b){const [m1,v1]=meanVar(a),[m2,v2]=meanVar(b),n1=a.length,n2=b.length;const sp=((n1-1)*v1+(n2-1)*v2)/(n1+n2-2);return {t:(m1-m2)/Math.sqrt(sp*(1/n1+1/n2)),df:n1+n2-2,m1,m2,s1:Math.sqrt(v1),s2:Math.sqrt(v2)}}
+function tWelch(a,b){const [m1,v1]=meanVar(a),[m2,v2]=meanVar(b),n1=a.length,n2=b.length;const q1=v1/n1,q2=v2/n2;return {t:(m1-m2)/Math.sqrt(q1+q2),df:(q1+q2)*(q1+q2)/(q1*q1/(n1-1)+q2*q2/(n2-1))}}
+function fFisher(G){const k=G.length;let N=0,gm=0;const mv=G.map(g=>{const r=meanVar(g);N+=g.length;gm+=r[0]*g.length;return r});gm/=N;
+  let ssb=0,ssw=0;G.forEach((g,i)=>{ssb+=g.length*(mv[i][0]-gm)**2;ssw+=(g.length-1)*mv[i][1]});return {F:(ssb/(k-1))/(ssw/(N-k)),d1:k-1,d2:N-k}}
+function fWelch(G){const k=G.length;const mv=G.map(meanVar);const w=G.map((g,i)=>g.length/mv[i][1]);const W=w.reduce((a,b)=>a+b,0);
+  const mw=w.reduce((s,wi,i)=>s+wi*mv[i][0],0)/W;const A=w.reduce((s,wi,i)=>s+wi*(mv[i][0]-mw)**2,0)/(k-1);
+  const L=w.reduce((s,wi,i)=>s+(1-wi/W)**2/(G[i].length-1),0);const B=1+2*(k-2)*L/(k*k-1);return {F:A/B,d1:k-1,d2:(k*k-1)/(3*L)}}
+function mannU(a,b){const all=a.map(v=>[v,0]).concat(b.map(v=>[v,1])).sort((x,y)=>x[0]-y[0]);let R1=0;all.forEach((e,i)=>{if(!e[1])R1+=i+1});
+  const n1=a.length,n2=b.length,U1=n1*n2+n1*(n1+1)/2-R1;const mu=n1*n2/2,sd=Math.sqrt(n1*n2*(n1+n2+1)/12);return {U1,U:Math.min(U1,n1*n2-U1),z:(U1-mu)/sd}}
+/* dokładny rozkład U przy H0: liczba ułożeń rang dających każdą wartość U */
+function uCounts(n1,n2){const memo=new Map();const f=(a,b)=>{const key=a+','+b;if(memo.has(key))return memo.get(key);let r;
+  if(a===0||b===0){r=[1]}else{const x=f(a-1,b),y=f(a,b-1);r=new Array(a*b+1).fill(0);x.forEach((c,u)=>r[u+b]+=c);y.forEach((c,u)=>r[u]+=c)}memo.set(key,r);return r};return f(n1,n2)}
+/* ANOVA z powtarzanym pomiarem (k pomiarów) + epsilon Greenhouse'a-Geissera z próby */
+function rmAnova(X){const n=X.length,k=X[0].length;let gm=0;const cm=new Array(k).fill(0),rm=X.map(r=>{let s=0;r.forEach((v,j)=>{s+=v;cm[j]+=v});gm+=s;return s/k});
+  gm/=n*k;cm.forEach((v,j)=>cm[j]=v/n);let ssc=0,sse=0;cm.forEach(v=>ssc+=n*(v-gm)**2);
+  X.forEach((r,i)=>r.forEach((v,j)=>{const e=v-rm[i]-cm[j]+gm;sse+=e*e}));const d1=k-1,d2=(k-1)*(n-1);
+  /* kowariancja i podwójnie scentrowana macierz -> epsilon */
+  const S=[];for(let a=0;a<k;a++){S.push([]);for(let b=0;b<k;b++){let s=0;X.forEach(r=>s+=(r[a]-cm[a])*(r[b]-cm[b]));S[a].push(s/(n-1))}}
+  const rmS=S.map(r=>r.reduce((x,y)=>x+y,0)/k),gS=rmS.reduce((x,y)=>x+y,0)/k;let tr=0,tr2=0;
+  for(let a=0;a<k;a++)for(let b=0;b<k;b++){const c=S[a][b]-rmS[a]-rmS[b]+gS;if(a===b)tr+=c;tr2+=c*c}
+  const eps=Math.min(1,Math.max(1/(k-1),tr*tr/((k-1)*tr2)));return {F:(ssc/d1)/(sse/d2),d1,d2,eps}}
+
+/* format liczb po polsku */
+const pl=(x,d=2)=>Number(x).toFixed(d).replace('.',',');
+const plp=p=>p<0.001?'< 0,001':pl(p,3);
+/* ---- dodatkowe: odwrotność rozkładu normalnego, Shapiro-Wilk, Levene, Mauchly, ANOVA ---- */
+function invNorm(p){const a=[-39.69683028665376,220.9460984245205,-275.9285104469687,138.3577518672690,-30.66479806614716,2.506628277459239],b=[-54.47609879822406,161.5858368580409,-155.6989798598866,66.80131188771972,-13.28068155288572],c=[-7.784894002430293e-03,-0.3223964580411365,-2.400758277161838,-2.549732539343734,4.374664141464968,2.938163982698783],d=[7.784695709041462e-03,0.3224671290700398,2.445134137142996,3.754408661907416];
+  const pl=0.02425;let q,r;if(p<pl){q=Math.sqrt(-2*Math.log(p));return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
+  if(p>1-pl){q=Math.sqrt(-2*Math.log(1-p));return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
+  q=p-0.5;r=q*q;return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1)}
+function shapiro(x){const n=x.length;if(n<3)return {W:NaN,p:NaN};const y=[...x].sort((a,b)=>a-b);const m=[];for(let i=1;i<=n;i++)m.push(invNorm((i-0.375)/(n+0.25)));
+  let mm=0;m.forEach(v=>mm+=v*v);const u=1/Math.sqrt(n);const a=new Array(n).fill(0);
+  const an=-2.706056*u**5+4.434685*u**4-2.071190*u**3-0.147981*u*u+0.221157*u+m[n-1]/Math.sqrt(mm);
+  let phi;if(n>5){const an1=-3.582633*u**5+5.682633*u**4-1.752461*u**3-0.293762*u*u+0.042981*u+m[n-2]/Math.sqrt(mm);
+    phi=(mm-2*m[n-1]**2-2*m[n-2]**2)/(1-2*an*an-2*an1*an1);for(let i=2;i<n-2;i++)a[i]=m[i]/Math.sqrt(phi);a[n-1]=an;a[0]=-an;a[n-2]=an1;a[1]=-an1}
+  else{phi=(mm-2*m[n-1]**2)/(1-2*an*an);for(let i=1;i<n-1;i++)a[i]=m[i]/Math.sqrt(phi);a[n-1]=an;a[0]=-an}
+  if(n===3){a[0]=-Math.SQRT1_2;a[1]=0;a[2]=Math.SQRT1_2}
+  let mean=0;y.forEach(v=>mean+=v);mean/=n;let ss=0,num=0;y.forEach((v,i)=>{ss+=(v-mean)**2;num+=a[i]*v});const W=Math.min(1,num*num/ss);
+  let p;if(n===3){p=Math.max(0,Math.min(1,6/Math.PI*(Math.asin(Math.sqrt(W))-Math.asin(Math.sqrt(0.75)))))}
+  else if(n<=11){const g=0.459*n-2.273,w=-Math.log(g-Math.log(1-W)),mu=0.5440-0.39978*n+0.025054*n*n-0.0006714*n**3,s=Math.exp(1.3822-0.77857*n+0.062767*n*n-0.0020322*n**3);p=nSf((w-mu)/s)}
+  else{const l=Math.log(n),w=Math.log(1-W),mu=0.0038915*l**3-0.083751*l*l-0.31082*l-1.5861,s=Math.exp(0.0030302*l*l-0.082676*l-0.4803);p=nSf((w-mu)/s)}
+  return {W,p}}
+/* ---- korelacje ---- */
+function ranks(a){const idx=a.map((v,i)=>[v,i]).sort((x,y)=>x[0]-y[0]);const r=new Array(a.length);
+  for(let i=0;i<idx.length;){let j=i;while(j+1<idx.length&&idx[j+1][0]===idx[i][0])j++;const av=(i+j)/2+1;for(let k=i;k<=j;k++)r[idx[k][1]]=av;i=j+1}return r}
+function pearson(x,y){const n=x.length;let mx=0,my=0;for(let i=0;i<n;i++){mx+=x[i];my+=y[i]}mx/=n;my/=n;let sxy=0,sxx=0,syy=0;
+  for(let i=0;i<n;i++){const a=x[i]-mx,b=y[i]-my;sxy+=a*b;sxx+=a*a;syy+=b*b}return sxx>0&&syy>0?sxy/Math.sqrt(sxx*syy):NaN}
+const spearman=(x,y)=>pearson(ranks(x),ranks(y));
+/* istotność współczynnika korelacji: t = r·√(n−2)/√(1−r²), df = n − 2 (tak liczy Jamovi) */
+function corP(r,n){if(!isFinite(r)||n<3)return NaN;if(Math.abs(r)>=1)return 0;const t=r*Math.sqrt((n-2)/(1-r*r));return tP2(Math.abs(t),n-2)}
+const corT=(r,n)=>r*Math.sqrt((n-2)/(1-r*r));
+/* para zmiennych o DOKŁADNIE zadanej korelacji w próbie */
+function exactPair(n,r,rng){const a=[],b=[];for(let i=0;i<n;i++){a.push(rng.n());b.push(rng.n())}
+  const st=v=>{let m=0;v.forEach(x=>m+=x);m/=v.length;let s=0;v.forEach(x=>s+=(x-m)**2);s=Math.sqrt(s);return v.map(x=>(x-m)/s)};
+  const z1=st(a);let z2=st(b);let d=0;for(let i=0;i<n;i++)d+=z1[i]*z2[i];z2=st(z2.map((v,i)=>v-d*z1[i]));
+  const k=Math.sqrt(Math.max(0,1-r*r));return [z1.map(v=>v*Math.sqrt(n)),z1.map((v,i)=>(r*v+k*z2[i])*Math.sqrt(n))]}
+const mi=x=>String(x).replace('-','−');
+const pls=(x,d=2)=>mi(pl(Math.abs(x)<0.5*Math.pow(10,-d)?0:x,d));
+/* opis siły związku (Cohen 1988) */
+const sila=r=>{const a=Math.abs(r);return a<0.1?'brak lub znikomy':a<0.3?'słaby':a<0.5?'umiarkowany':'silny'};
+
+const NS='http://www.w3.org/2000/svg';
+const $=id=>document.getElementById(id);
+function el(tag,a,p,t){const e=document.createElementNS(NS,tag);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;if(p)p.appendChild(e);return e}
+const COL={blue:'#1f78c8',red:'#e3201b',green:'#22a447',yellow:'#ffc21a',ink:'#111',grid:'#ebe8ee',soft:'#5d5a63'};
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const fmtP=p=>!isFinite(p)?'–':p<0.001?'< 0,001':pl(p,3);
+const fmtPe=p=>!isFinite(p)?'–':p<0.001?'p < 0,001':'p = '+pl(p,3);
+function niceStep(span,k){const raw=span/k,m=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/m;return (f<1.5?1:f<3?2:f<7?5:10)*m}
+function range(v,pad){let lo=Math.min(...v),hi=Math.max(...v);if(hi-lo<1e-9){lo-=1;hi+=1}const st=niceStep(hi-lo,6);return {lo:Math.floor((lo-pad*(hi-lo))/st)*st,hi:Math.ceil((hi+pad*(hi-lo))/st)*st,st}}
+const ticks=(r)=>{const o=[];for(let x=r.lo;x<=r.hi+1e-9;x+=r.st)o.push(+x.toFixed(6));return o};
+const fnum=v=>mi(String(+v.toFixed(4)).replace('.',','));
+function linfit(x,y){const n=x.length;let mx=0,my=0;for(let i=0;i<n;i++){mx+=x[i];my+=y[i]}mx/=n;my/=n;let sxy=0,sxx=0;for(let i=0;i<n;i++){sxy+=(x[i]-mx)*(y[i]-my);sxx+=(x[i]-mx)**2}const b=sxx?sxy/sxx:0;return [my-b*mx,b,mx,my]}
+function quadR2(x,y){/* R² regresji kwadratowej */const n=x.length;let mx=0;x.forEach(v=>mx+=v);mx/=n;const u=x.map(v=>v-mx),w=u.map(v=>v*v);
+  const A=[[n,0,0],[0,0,0],[0,0,0]],b=[0,0,0];const cols=[x.map(()=>1),u,w];for(let i=0;i<3;i++){for(let j=0;j<3;j++){let s=0;for(let k=0;k<n;k++)s+=cols[i][k]*cols[j][k];A[i][j]=s}let s=0;for(let k=0;k<n;k++)s+=cols[i][k]*y[k];b[i]=s}
+  const M=A.map((r,i)=>[...r,b[i]]);for(let i=0;i<3;i++){let p=i;for(let r=i+1;r<3;r++)if(Math.abs(M[r][i])>Math.abs(M[p][i]))p=r;[M[i],M[p]]=[M[p],M[i]];if(Math.abs(M[i][i])<1e-12)return 0;for(let r=0;r<3;r++)if(r!==i){const f=M[r][i]/M[i][i];for(let c=i;c<4;c++)M[r][c]-=f*M[i][c]}}
+  const be=M.map((r,i)=>r[3]/r[i]);let my=0;y.forEach(v=>my+=v);my/=n;let ss=0,se=0;for(let k=0;k<n;k++){const f=be[0]+be[1]*u[k]+be[2]*w[k];se+=(y[k]-f)**2;ss+=(y[k]-my)**2}return ss?1-se/ss:0}
+function skKu(v){const n=v.length;if(n<4)return [NaN,NaN];let m=0;v.forEach(x=>m+=x);m/=n;let m2=0,m3=0,m4=0;v.forEach(x=>{const d=x-m;m2+=d*d;m3+=d**3;m4+=d**4});m2/=n;m3/=n;m4/=n;if(!m2)return [0,0];
+  const g1=m3/m2**1.5,g2=m4/(m2*m2)-3;return [Math.sqrt(n*(n-1))/(n-2)*g1,(n-1)/((n-2)*(n-3))*((n+1)*g2+6)]}
+
+/* ---------- dane ---------- */
+const S={x:[],y:[],nameX:'samoocena',nameY:'dobrostan',ord:false,seed:1,gen:true,ux:{m:30,s:6},uy:{m:60,s:12}};
+const PRE=[
+{name:'Samoocena i dobrostan',set:{r:0.45,n:50,c:0,s:0,o:0,ord:false,nameX:'samoocena',nameY:'dobrostan',ux:{m:30,s:6},uy:{m:60,s:12}}},
+{name:'Neurotyczność i satysfakcja',set:{r:-0.5,n:80,c:0,s:0,o:0,seed:3,ord:false,nameX:'neurotyczność',nameY:'satysfakcja z życia',ux:{m:24,s:7,lo:0},uy:{m:20,s:6,lo:5,hi:35}}},
+{name:'Ekstrawersja i sumienność',set:{r:0.24,n:150,c:0,s:0,o:0,ord:false,nameX:'ekstrawersja',nameY:'sumienność',ux:{m:30,s:7},uy:{m:32,s:6}}},
+{name:'Stres i objawy somatyczne',set:{r:0.75,n:60,c:0.8,s:0,o:0,ord:false,nameX:'stres (PSS-10)',nameY:'objawy somatyczne',ux:{m:18,s:6,lo:0},uy:{m:10,s:5,lo:0}}},
+{name:'Media społecznościowe i lęk',set:{r:0.4,n:60,c:0,s:0.85,o:0,ord:false,nameX:'media (godz./dzień)',nameY:'lęk',ux:{m:3,s:1.5,lo:0,dec:1},uy:{m:40,s:9}}},
+ {name:'Popularność i samoocena',fixed:()=>{const r=RNG(79);const y=[];for(let i=1;i<=15;i++)y.push(Math.round(38-0.9*i+3.5*r.n()));return {x:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],y}},set:{ord:true,nameX:'pozycja w rankingu (1 = najwyżej)',nameY:'samoocena'}},
+ {name:'Pobudzenie i wynik testu',fixed:()=>{const r=RNG(55);const x=[],y=[];for(let i=0;i<50;i++){const v=1+9*(i+0.5)/50+0.3*r.n();x.push(+v.toFixed(1));y.push(Math.round(80-2.6*(v-5.5)**2+5*r.n()))}return {x,y}},set:{ord:false,nameX:'pobudzenie (1–10)',nameY:'wynik testu'}},
+{name:'Rozmiar buta i IQ',set:{r:0,n:60,c:0,s:0,o:0,ord:false,nameX:'rozmiar buta',nameY:'iloraz inteligencji',ux:{m:41,s:3},uy:{m:100,s:15}}},
+{name:'Znajomi w sieci i samotność',set:{r:0,n:30,c:0,s:0,o:2,ord:false,nameX:'liczba znajomych w sieci',nameY:'samotność',ux:{m:300,s:80,lo:20},uy:{m:40,s:8}}}
+];
+const sl={r:$('sR'),n:$('sN'),c:$('sC'),s:$('sS'),o:$('sO')};
+function genData(P){const n=P.n,r=P.r,c=P.c||0,sk=P.s||0,o=P.o||0;const rng=RNG(1000*P.seed+n);
+  let [a,b]=exactPair(n,Math.max(-1,Math.min(1,r)),rng);a=a.map(v=>v/Math.sqrt(n)*Math.sqrt(n-1));b=b.map(v=>v/Math.sqrt(n)*Math.sqrt(n-1));
+  /* skośność: wykładnicza transformacja (monotoniczna – rangi bez zmian) */
+  const sk1=v=>{if(sk<=0)return v;const k=1.3*sk;return (Math.exp(k*v)-Math.exp(k*k/2))/Math.sqrt((Math.exp(k*k)-1)*Math.exp(k*k))};
+  const cv=v=>{if(c<=0)return v;const k=1.6*c;return (Math.exp(k*v)-Math.exp(k*k/2))/Math.sqrt((Math.exp(k*k)-1)*Math.exp(k*k))};
+  let X=a.map(sk1),Y=b.map(v=>cv(sk1(v)));
+  for(let i=0;i<o;i++){X.push(5+0.6*i);Y.push(5.2+0.5*i)}
+  const tr=(v,u)=>{let z=u.m+u.s*v;if(u.lo!=null)z=Math.max(u.lo,z);if(u.hi!=null)z=Math.min(u.hi,z);return +z.toFixed(u.dec||0)};
+  return {x:X.map(v=>tr(v,P.ux)),y:Y.map(v=>tr(v,P.uy))}}
+function generate(){const d=genData({n:+sl.n.value,r:+sl.r.value,c:+sl.c.value,s:+sl.s.value,o:+sl.o.value,seed:S.seed,ux:S.ux,uy:S.uy});S.x=d.x;S.y=d.y;S.gen=true;S.edited=false}
+function syncOut(){$('oR').textContent=pls(+sl.r.value,2);$('oN').textContent=sl.n.value;$('oC').textContent=pl(+sl.c.value,2);$('oS').textContent=pl(+sl.s.value,2);$('oO').textContent=sl.o.value}
+function applyPreset(i){const P=PRE[i];const st=P.set;S.nameX=st.nameX;S.nameY=st.nameY;S.seed=st.seed||1;S.ord=st.ord;$('nameX').value=S.nameX;$('nameY').value=S.nameY;$('ord').checked=S.ord;
+  if(P.fixed){const d=P.fixed();S.x=d.x;S.y=d.y;S.gen=false;S.edited=false}else{S.ux=st.ux;S.uy=st.uy;sl.r.value=st.r;sl.n.value=st.n;sl.c.value=st.c;sl.s.value=st.s;sl.o.value=st.o;syncOut();generate()}
+  [...$('presets').children].forEach((b,j)=>b.classList.toggle('sel',j===i));render()}
+PRE.forEach((p,i)=>{const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=p.name;b.onclick=()=>applyPreset(i);$('presets').appendChild(b)});
+Object.values(sl).forEach(s=>s.addEventListener('input',()=>{syncOut();if(!S.gen){S.ux={m:50,s:10};S.uy={m:50,s:10}}generate();[...$('presets').children].forEach(b=>b.classList.remove('sel'));render()}));
+$('reseed').onclick=()=>{S.seed++;if(!S.gen){S.ux={m:50,s:10};S.uy={m:50,s:10}}generate();render()};
+$('undo').onclick=()=>{if(S.x.length>3){S.x.pop();S.y.pop();S.edited=true;render()}};
+$('nameX').oninput=e=>{S.nameX=e.target.value||'X';render()};$('nameY').oninput=e=>{S.nameY=e.target.value||'Y';render()};
+$('ord').onchange=e=>{S.ord=e.target.checked;render()};
+
+/* ---------- wykres punktowy ---------- */
+let frozen=null,dragI=-1;
+function scatter(svg,x,y,o){svg.innerHTML='';const W=+svg.viewBox.baseVal.width,H=+svg.viewBox.baseVal.height;const L=o.L??74,R=W-16,T=o.T??16,B=H-58;
+  const rx=o.rx||range(x,.06),ry=o.ry||range(y,.06);
+  const sx=v=>L+(v-rx.lo)/(rx.hi-rx.lo)*(R-L),sy=v=>B-(v-ry.lo)/(ry.hi-ry.lo)*(B-T);
+  ticks(rx).forEach(t=>{el('line',{x1:sx(t),x2:sx(t),y1:T,y2:B,stroke:COL.grid,'stroke-width':1.5},svg);el('text',{x:sx(t),y:B+24,'text-anchor':'middle','font-size':16},svg,fnum(t))});
+  ticks(ry).forEach(t=>{el('line',{x1:L,x2:R,y1:sy(t),y2:sy(t),stroke:COL.grid,'stroke-width':1.5},svg);el('text',{x:L-8,y:sy(t)+5,'text-anchor':'end','font-size':16},svg,fnum(t))});
+  el('line',{x1:L,x2:R,y1:B,y2:B,stroke:COL.ink,'stroke-width':3},svg);el('line',{x1:L,x2:L,y1:T,y2:B,stroke:COL.ink,'stroke-width':3},svg);
+  el('text',{x:(L+R)/2,y:H-10,'text-anchor':'middle','font-size':17,'font-weight':700},svg,o.xl||'');el('text',{x:16,y:(T+B)/2,'text-anchor':'middle','font-size':17,'font-weight':700,transform:`rotate(-90 16 ${(T+B)/2})`},svg,o.yl||'');
+  const cid='c'+Math.random().toString(36).slice(2);el('rect',{x:L,y:T,width:R-L,height:B-T},el('clipPath',{id:cid},el('defs',{},svg)));const g=el('g',{'clip-path':`url(#${cid})`},svg);
+  if(o.means){const [,,mx,my]=linfit(x,y);el('line',{x1:sx(mx),x2:sx(mx),y1:T,y2:B,stroke:COL.soft,'stroke-width':2,'stroke-dasharray':'6 6'},g);el('line',{x1:L,x2:R,y1:sy(my),y2:sy(my),stroke:COL.soft,'stroke-width':2,'stroke-dasharray':'6 6'},g)}
+  if(o.line&&x.length>1){const [a,b]=linfit(x,y);el('line',{x1:sx(rx.lo),x2:sx(rx.hi),y1:sy(a+b*rx.lo),y2:sy(a+b*rx.hi),stroke:o.lc||COL.blue,'stroke-width':4,opacity:.85},g)}
+  const rr=x.length>150?5:x.length>60?7:9;
+  const pts=x.map((v,i)=>el('circle',{cx:sx(v),cy:sy(y[i]),r:o.hl&&o.hl.has(i)?rr+3:rr,fill:o.hl&&o.hl.has(i)?COL.yellow:(o.c||COL.blue),'fill-opacity':.78,stroke:o.hl&&o.hl.has(i)?COL.ink:'#fff','stroke-width':o.hl&&o.hl.has(i)?2.5:1.5,class:'pt'},g));
+  return {sx,sy,ix:px=>rx.lo+(px-L)/(R-L)*(rx.hi-rx.lo),iy:py=>ry.lo+(B-py)/(B-T)*(ry.hi-ry.lo),pts,rx,ry,L,R,T,B}}
+function hist(svg,v,color,label){svg.innerHTML='';const W=440,H=200,L=12,R=W-12,T=10,B=H-36;const n=v.length;const r=range(v,0);const k=Math.max(5,Math.min(20,Math.round(Math.sqrt(n)*1.3)));const bw=(r.hi-r.lo)/k;
+  const c=new Array(k).fill(0);v.forEach(x=>{let i=Math.floor((x-r.lo)/bw);if(i>=k)i=k-1;if(i<0)i=0;c[i]++});const mx=Math.max(...c);
+  let m=0;v.forEach(x=>m+=x);m/=n;let s=0;v.forEach(x=>s+=(x-m)**2);s=Math.sqrt(s/(n-1))||1;const peak=n*bw*nPdf(0)/s;const ym=Math.max(mx,peak)*1.08;
+  const sx=x=>L+(x-r.lo)/(r.hi-r.lo)*(R-L),sy=y=>B-y/ym*(B-T);
+  c.forEach((h,i)=>{if(h)el('rect',{x:sx(r.lo+i*bw)+.5,y:sy(h),width:Math.max(1,sx(r.lo+(i+1)*bw)-sx(r.lo+i*bw)-1),height:B-sy(h),fill:color,'fill-opacity':.55,stroke:color},svg)});
+  let d='';for(let i=0;i<=200;i++){const x=r.lo+(r.hi-r.lo)*i/200;d+=(d?'L':'M')+sx(x).toFixed(1)+' '+sy(n*bw*nPdf((x-m)/s)/s).toFixed(1)}el('path',{d,fill:'none',stroke:COL.ink,'stroke-width':2.5,'stroke-dasharray':'6 5'},svg);
+  el('line',{x1:L,x2:R,y1:B,y2:B,stroke:COL.ink,'stroke-width':3},svg);
+  ticks(r).forEach(t=>el('text',{x:sx(t),y:B+20,'text-anchor':'middle','font-size':14},svg,fnum(t)));
+  el('text',{x:R,y:T+14,'text-anchor':'end','font-size':13,fill:COL.soft},svg,'– – krzywa normalna')}
+
+/* ---------- analiza ---------- */
+function analyse(x=S.x,y=S.y){const n=x.length;const r=pearson(x,y),h=spearman(x,y);
+  const swx=n>=3&&n<=5000?shapiro(x):{W:NaN,p:NaN},swy=n>=3&&n<=5000?shapiro(y):{W:NaN,p:NaN};const kx=skKu(x),ky=skKu(y);
+  /* odstające: zmodyfikowany wynik z (mediana i MAD) > 3,5 */
+  const mz=v=>{const sv=[...v].sort((a,b)=>a-b),med=sv.length%2?sv[(sv.length-1)/2]:(sv[sv.length/2-1]+sv[sv.length/2])/2;const ad=v.map(a=>Math.abs(a-med)).sort((a,b)=>a-b);const mad=ad.length%2?ad[(ad.length-1)/2]:(ad[ad.length/2-1]+ad[ad.length/2])/2;return v.map(a=>mad?0.6745*(a-med)/mad:0)};
+  const zx=mz(x),zy=mz(y);const out=new Set();zx.forEach((v,i)=>{if(Math.abs(v)>3.5||Math.abs(zy[i])>3.5)out.add(i)});
+  const nonN=v=>n<=100?v.sw.p<.05:(Math.abs(v.k[0])>1||Math.abs(v.k[1])>1);
+  const badX=nonN({sw:swx,k:kx}),badY=nonN({sw:swy,k:ky});const q2=n>=6?quadR2(x,y):0;
+  return {n,r,h,pr:corP(r,n),ph:corP(h,n),swx,swy,kx,ky,out,badX,badY,q2}}
+let A=null;
+function render(){const x=S.x,y=S.y;A=analyse();const n=A.n;
+  $('tR').textContent=isFinite(A.r)?pls(A.r,2):'–';$('tRp').textContent=fmtP(A.pr);$('tRs').textContent=isFinite(A.r)?sila(A.r):'–';
+  $('tH').textContent=isFinite(A.h)?pls(A.h,2):'–';$('tHp').textContent=fmtP(A.ph);$('tHs').textContent=isFinite(A.h)?sila(A.h):'–';
+  const pill=(ok,t)=>`<span class="pill ${ok?'g':'r'}">${t}</span>`;
+  const nlab=v=>n<=100?`SW p ${v.sw.p<0.001?'< 0,001':'= '+pl(v.sw.p,3)}`:`SKE ${pls(v.k[0],2)}; K ${pls(v.k[1],2)}`;
+  $('kSX').textContent='normalność X';$('kSY').textContent='normalność Y';
+  $('tSX').innerHTML=pill(!A.badX,A.badX?'naruszona':'OK')+'<br><small style="font-family:var(--f-body);font-size:.75rem">'+nlab({sw:A.swx,k:A.kx})+'</small>';
+  $('tSY').innerHTML=pill(!A.badY,A.badY?'naruszona':'OK')+'<br><small style="font-family:var(--f-body);font-size:.75rem">'+nlab({sw:A.swy,k:A.ky})+'</small>';
+  const k=A.out.size,os=k===1?'osoba':(k%10>=2&&k%10<=4&&(k%100<12||k%100>14))?'osoby':'osób';$('tOut').innerHTML=pill(!k,k?k+' '+os:'brak');
+  $('tScale').innerHTML=pill(!S.ord,S.ord?'porządkowa':'ilościowa');
+  /* rekomendacja */
+  const why=[];if(S.ord)why.push('X jest na skali porządkowej');if(A.badX||A.badY)why.push(`rozkład ${A.badX&&A.badY?'obu zmiennych':A.badX?'zmiennej X':'zmiennej Y'} odbiega od normalnego`);if(A.out.size)why.push('są wartości odstające');
+  const useS=why.length>0;const rec=$('rec');rec.className='rec '+(useS?'s':'p');
+  const crit=n>100?'(przy ponad 100 osobach patrzymy na skośność i kurtozę, bo Shapiro-Wilk wykrywa wtedy nawet drobne odchylenia)':'(Shapiro-Wilk w obu zmiennych)';
+  let t=useS?`<b>Wybierz Spearmana.</b> Powód: ${why.join(', ')}.`:`<b>Wybierz Pearsona.</b> Obie zmienne są ilościowe, rozkłady zbliżone do normalnego ${crit}, brak odstających.`;
+  if(A.q2>0.4&&A.q2-Math.max(A.r*A.r,A.h*A.h)>0.25)t+=` <span class="red"><b>Uwaga:</b> punkty układają się w łuk (kształt U). Związek nie jest ani liniowy, ani monotoniczny, więc oba współczynniki go zaniżają.</span>`;
+  else if(isFinite(A.r)&&isFinite(A.h)&&Math.abs(A.r-A.h)>=0.15)t+=` Współczynniki różnią się o ${pl(Math.abs(A.r-A.h),2)} – to sygnał, że Pearson „widzi” coś innego niż rangi.`;
+  if(n<8)t+=' Bardzo mała próba: wyniki są niestabilne.';
+  rec.innerHTML=t;
+  /* wykresy */
+  const hl=A.out;
+  const o=scatter($('sc'),x,y,{xl:S.nameX,yl:S.nameY,line:$('tgLine').checked,means:$('tgMean').checked,hl,rx:frozen&&frozen.rx,ry:frozen&&frozen.ry});bindDrag(o);
+  const rx=ranks(x),ry=ranks(y);scatter($('rk'),rx,ry,{xl:'ranga X',yl:'ranga Y',line:true,lc:COL.red,c:COL.red,hl,L:60,rx:{lo:0,hi:n+1,st:niceStep(n,5)},ry:{lo:0,hi:n+1,st:niceStep(n,5)}});
+  hist($('hX'),x,COL.blue);hist($('hY'),y,COL.red);$('hXh').textContent='Rozkład: '+S.nameX;$('hYh').textContent='Rozkład: '+S.nameY;
+  $('nInfo').textContent=`Liczba osób: ${n}`+(S.edited?' (dane zmienione ręcznie)':'');
+  /* opis */
+  const coef=useS?A.h:A.r,p=useS?A.ph:A.pr;const sym=useS?'<i>r<sub>s</sub></i>':'<i>r</i>';const name=useS?'Spearmana':'Pearsona';
+  if(isFinite(coef)){const sig=p<.05;
+    $('desc').innerHTML=`Korelacja ${name} ${sig?'wykazała istotny związek':'nie wykazała istotnego związku'} między zmiennymi <b>${S.nameX}</b> i <b>${S.nameY}</b>. `+
+      (sig?`Związek jest <b>${sila(coef)}</b> i <b>${coef>0?'dodatni':'ujemny'}</b>: ${coef>0?'im wyższe':'im wyższe'} wyniki w zmiennej ${S.nameX}, tym ${coef>0?'wyższe':'niższe'} wyniki w zmiennej ${S.nameY}.`:'Nie mamy dowodu, że związek występuje w populacji (co nie znaczy, że na pewno go nie ma).');
+    $('apa').innerHTML=`${sym}(${n-2}) = ${pls(coef,2)}; <i>p</i> ${p<0.001?'< 0,001':'= '+pl(p,3)}`}
+  else{$('desc').textContent='Za mało zróżnicowane dane, żeby policzyć korelację.';$('apa').textContent='–'}
+  checkTasks()}
+$('tgLine').onchange=render;$('tgMean').onchange=render;
+$('copy').onclick=()=>{const t=$('apa').textContent;try{navigator.clipboard.writeText(t);$('copy').textContent='Skopiowano';setTimeout(()=>$('copy').textContent='Kopiuj',1200)}catch(e){}};
+
+/* przeciąganie i dodawanie */
+function svgPt(svg,ev){const p=svg.createSVGPoint();p.x=ev.clientX;p.y=ev.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
+let cur=null;function bindDrag(o){cur=o;o.pts.forEach((c,i)=>c.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();dragI=i;frozen={rx:o.rx,ry:o.ry};$('sc').setPointerCapture(e.pointerId)}))}
+const round1=v=>Math.round(v*10)/10;
+$('sc').addEventListener('pointerdown',e=>{if(dragI>=0||!cur)return;const p=svgPt($('sc'),e);if(p.x<cur.L||p.x>cur.R||p.y<cur.T||p.y>cur.B)return;S.x.push(round1(cur.ix(p.x)));S.y.push(round1(cur.iy(p.y)));S.edited=true;render()});
+$('sc').addEventListener('pointermove',e=>{if(dragI<0||!cur)return;const p=svgPt($('sc'),e);const cx=Math.max(cur.L,Math.min(cur.R,p.x)),cy=Math.max(cur.T,Math.min(cur.B,p.y));S.x[dragI]=round1(cur.ix(cx));S.y[dragI]=round1(cur.iy(cy));S.edited=true;
+  $('tip').textContent=`osoba ${dragI+1}: ${S.nameX} = ${fnum(S.x[dragI])}, ${S.nameY} = ${fnum(S.y[dragI])}`;const k=dragI;render();dragI=k});
+const endDrag=()=>{if(dragI>=0){dragI=-1;frozen=null;render()}};$('sc').addEventListener('pointerup',endDrag);$('sc').addEventListener('pointercancel',endDrag);
+
+/* ---------- zadania: jedno po drugim, z własnymi danymi i suwakiem ---------- */
+const EU={m:50,s:10};
+const TASKS=[
+ {t:'Zrób <b>silny związek dodatni</b>: r Pearsona co najmniej 0,5.',hint:'Przesuń suwak w prawo.',sl:{k:'r',lab:'Siła związku',min:-1,max:1,step:0.05,v:0},base:{n:50,r:0},ok:a=>a.r>=0.5,
+  learn:'Punkty układają się wzdłuż rosnącej linii: im wyższe X, tym wyższe Y.'},
+ {t:'Zrób <b>związek ujemny</b>: r Pearsona −0,3 lub mniej.',hint:'Przesuń suwak w lewo, poniżej zera.',sl:{k:'r',lab:'Siła związku',min:-1,max:1,step:0.05,v:0.3},base:{n:50},ok:a=>a.r<=-0.3,
+  learn:'Linia opada: im wyższe X, tym niższe Y. Znak mówi o kierunku, a nie o sile.'},
+ {t:'Zrób <b>brak związku</b>: r Pearsona między −0,1 a 0,1.',hint:'Ustaw suwak na 0.',sl:{k:'r',lab:'Siła związku',min:-1,max:1,step:0.05,v:0.7},base:{n:50},ok:a=>Math.abs(a.r)<0.1,
+  learn:'Punkty rozsypują się po całym wykresie. Linia trendu jest prawie płaska.'},
+ {t:'Związek ma siłę r = 0,3. Zrób tak, żeby wynik był <b>nieistotny</b> (p ≥ 0,05).',hint:'Zmniejsz liczbę osób.',sl:{k:'n',lab:'Liczba osób',min:5,max:200,step:1,v:150},base:{r:0.3},ok:a=>a.pr>=.05,
+  learn:'To samo r może być istotne w dużej próbie i nieistotne w małej. Mała próba = mniej dowodów.'},
+ {t:'<b>Zepsuj normalność</b>: niech rozkład obu zmiennych stanie się nienormalny.',hint:'Przesuń suwak skośności w prawo. Zobacz, jak kropki „uciekają” w prawy górny róg.',sl:{k:'s',lab:'Skośność obu zmiennych',min:0,max:1,step:0.05,v:0},base:{n:60,r:0.45},ok:a=>a.badX&&a.badY,
+  learn:'Gdy rozkłady są skośne, wybieramy Spearmana zamiast Pearsona.'},
+ {t:'Dodaj <b>osoby odstające</b> tak, żeby r Pearsona wzrosło do 0,4 lub więcej, choć reszta osób nie ma związku.',hint:'Przesuń suwak na 2 i porównaj r z rho.',sl:{k:'o',lab:'Osoby odstające',min:0,max:3,step:1,v:0},base:{n:30,r:0},ok:a=>a.r>=0.4&&a.h<0.2,
+  learn:'Dwie osoby wystarczą, żeby Pearson „zobaczył” związek, którego nie ma. Spearman na rangach prawie ich nie zauważa.'}];
+let done=store.get('kor-tasks3',[]),exI=0;
+const exS=$('exSl'),exO=$('exSlO');
+function exTabs(){const box=$('exTabs');box.innerHTML='';TASKS.forEach((t,i)=>{const b=document.createElement('button');b.type='button';b.setAttribute('role','tab');b.setAttribute('aria-selected',i===exI);
+  b.className=done.includes(i)?'done':'';b.textContent=(done.includes(i)?'✓ ':'')+'Zadanie '+(i+1);b.onclick=()=>{exI=i;exShow()};box.appendChild(b)})}
+function exFmt(k,v){return k==='r'?pls(v,2):k==='s'?pl(v,2):String(v)}
+function exShow(){const T=TASKS[exI];exTabs();$('exTask').innerHTML=T.t;$('exHintBox').hidden=true;$('exHintBox').textContent=T.hint;
+  $('exSlL').textContent=T.sl.lab;exS.min=T.sl.min;exS.max=T.sl.max;exS.step=T.sl.step;exS.value=T.sl.v;
+  $('exNext').textContent=exI<TASKS.length-1?'Następne zadanie →':'Od nowa';exRun()}
+function exRun(){const T=TASKS[exI];const P=Object.assign({n:50,r:0.45,c:0,s:0,o:0,seed:7,ux:EU,uy:EU},T.base);P[T.sl.k]=+exS.value;exO.textContent=exFmt(T.sl.k,+exS.value);
+  const d=genData(P);const E=analyse(d.x,d.y);
+  if(!done.includes(exI)&&isFinite(E.r)&&T.ok(E)){done.push(exI);store.set('kor-tasks3',done);exTabs()}
+  const ok=done.includes(exI)&&T.ok(E);
+  $('exLive').innerHTML=`Teraz: r Pearsona = <b>${pls(E.r,2)}</b> (p ${E.pr<0.001?'< 0,001':'= '+pl(E.pr,3)}), rho Spearmana = <b>${pls(E.h,2)}</b>, osób: ${E.n}`;
+  $('exOk').hidden=!ok;$('exOk').innerHTML='✓ <b>Zrobione!</b> '+T.learn;$('chScore').textContent=done.length+' / '+TASKS.length;
+  const col=ok?COL.green:COL.blue;
+  scatter($('exSc'),d.x,d.y,{xl:'zmienna X',yl:'zmienna Y',line:true,hl:E.out,lc:col,c:col,T:52});
+  el('text',{x:80,y:32,'font-size':22,'font-weight':700,style:'fill:'+COL.blue},$('exSc'),'r = '+pls(E.r,2));el('text',{x:220,y:32,'font-size':22,'font-weight':700,style:'fill:'+COL.red},$('exSc'),'rho = '+pls(E.h,2))}
+exS.addEventListener('input',exRun);
+$('exHint').onclick=()=>{$('exHintBox').hidden=!$('exHintBox').hidden};
+$('exNext').onclick=()=>{if(exI<TASKS.length-1)exI++;else{exI=0;done=[];store.set('kor-tasks3',done)}exShow()};
+function checkTasks(){}
+
+/* ---------- zgadnij ---------- */
+(function(){let rng=RNG(Date.now()%100000),cur=0,ok=0,all=0,shown=false,X=[],Y=[];const gs=$('gS');
+  function next(){cur=Math.round((rng.u()*1.9-0.95)*20)/20;const n=30+Math.floor(rng.u()*90);[X,Y]=exactPair(n,cur,rng);X=X.map(v=>50+10*v);Y=Y.map(v=>50+10*v);shown=false;gs.value=0;$('gO').textContent='0,00';$('gV').className='verdict';$('gV').textContent='Ustaw suwak i sprawdź.';draw()}
+  function draw(){scatter($('gPlot'),X,Y,{rx:{lo:10,hi:90,st:10},ry:{lo:10,hi:90,st:10},line:shown,xl:'X',yl:'Y'});if(shown)el('text',{x:96,y:44,'font-size':26,'font-weight':700,fill:COL.red},$('gPlot'),'r = '+pls(cur,2))}
+  gs.oninput=()=>$('gO').textContent=pls(+gs.value,2);
+  $('gCheck').onclick=()=>{if(shown)return;shown=true;all++;const d=Math.abs(+gs.value-cur);const hit=d<=0.1+1e-9;if(hit)ok++;$('gV').className='verdict '+(hit?'good':d<=0.25?'warn':'bad');
+    $('gV').innerHTML=(hit?'Brawo! ':d<=0.25?'Blisko. ':'Pudło. ')+`Prawdziwe r = ${pls(cur,2)}.`;$('gScore').textContent=ok+' / '+all;draw()};
+  $('gNext').onclick=next;next()})();
+
+/* ---------- quiz ---------- */
+const QZ=[
+ ['r = −0,62 oznacza związek…',['silny ujemny','słaby ujemny','brak związku'],0,'Znak to kierunek, |r| ≥ 0,5 to silny związek.'],
+ ['Która korelacja jest silniejsza?',['r = 0,40','r = −0,55','obie tak samo'],1,'O sile decyduje wartość bezwzględna: 0,55 > 0,40.'],
+ ['Zmienna X to miejsce w rankingu (1., 2., 3.…). Jaki współczynnik?',['Pearsona','Spearmana','żaden'],1,'Skala porządkowa → Spearman.'],
+ ['Shapiro-Wilk dla obu zmiennych: p = 0,31 i p = 0,47. Co to znaczy?',['rozkłady zbliżone do normalnego','rozkłady nienormalne','korelacja jest istotna'],0,'Wynik nieistotny (p > 0,05) → nie odrzucamy normalności.'],
+ ['r = 0,35, n = 20, p = 0,13. Wniosek?',['w populacji nie ma związku','nie znaleźliśmy dowodu na związek','związek jest istotny'],1,'p ≥ 0,05: zostajemy przy H₀, ale to nie dowód braku związku.'],
+ ['Jedna skrajna osoba podniosła r z 0,05 do 0,48. Który współczynnik mniej na nią reaguje?',['Pearsona','Spearmana','oba tak samo'],1,'Spearman liczy na rangach: skrajna osoba to po prostu ostatnia ranga.'],
+ ['Punkty tworzą wyraźny łuk (odwrócone U), r ≈ 0. Co to znaczy?',['brak jakiegokolwiek związku','brak związku liniowego','błąd w danych'],1,'r mierzy tylko związek liniowy. Zawsze oglądaj wykres.'],
+ ['Jak zapisać wynik korelacji Spearmana w APA?',['rs(48) = 0,41; p = 0,003','r = 41%','F(1, 48) = 0,41'],0,'Symbol rs (s w indeksie), w nawiasie df = n − 2.']];
+let qa=store.get('kor-quiz',{});
+function quiz(){const box=$('quiz');box.innerHTML='';let sc=0;QZ.forEach((q,i)=>{const d=document.createElement('div');d.className='q';d.innerHTML=`<b>${q[0]}</b><div class="opts"></div><div class="why"></div>`;
+  q[1].forEach((o,j)=>{const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=o;if(qa[i]!=null){if(j===q[2])b.classList.add('ok');else if(j===qa[i])b.classList.add('no')}
+    b.onclick=()=>{if(qa[i]!=null)return;qa[i]=j;store.set('kor-quiz',qa);quiz()};d.querySelector('.opts').appendChild(b)});
+  if(qa[i]!=null){d.querySelector('.why').textContent=(qa[i]===q[2]?'Dobrze. ':'Nie tym razem. ')+q[3];if(qa[i]===q[2])sc++}box.appendChild(d)});$('qScore').textContent=sc+' / '+QZ.length}
+$('qReset').onclick=()=>{qa={};store.set('kor-quiz',qa);quiz()};quiz();
+
+syncOut();applyPreset(0);exShow();
+
+})();
+</script>
+</body>
+</html>
