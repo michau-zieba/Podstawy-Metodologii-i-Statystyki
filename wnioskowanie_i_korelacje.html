@@ -493,7 +493,7 @@ html:not(.static) .static-only{display:none!important}
     <div class="mbox"><span>Liczba wykonanych badań</span><span class="big" id="mN">0</span></div>
    </div>
    <div><svg class="plot" id="mplot" viewBox="0 0 760 430" role="img" aria-label="Histogram wartości t z powtórzonych badań"></svg>
-    <div class="legend"><span><i style="background:#f5c86a"></i>wyniki t z badań</span><span><i class="ln"></i>rozkład teoretyczny t(50)</span><span><i style="background:var(--red)"></i>ostatnie badanie</span></div></div>
+    <div class="legend"><span><i style="background:#f5c86a"></i>wyniki t z badań</span><span><i class="ln"></i>rozkład teoretyczny t(58)</span><span><i style="background:var(--red)"></i>ostatnie badanie</span></div></div>
   </div>
  </div>
 </section>
@@ -1125,7 +1125,7 @@ const fr=(a,b)=>`<mfrac displaystyle="true"><mrow>${a}</mrow><mrow>${b}</mrow></
   let k=STATIC?S.length:1;const box=byId('tform'),b=byId('tstep');const r=()=>{box.innerHTML='<math style="font-size:1.45em"><mrow>'+S.slice(0,k).join('')+'</mrow></math>';if(b)b.disabled=k>=S.length};r();if(b)b.onclick=()=>{k=Math.min(S.length,k+1);r()}})();
 
 /* ---------- 7. maszyna do powtarzania badań (świat H0: 30 pkt w obu grupach) ---------- */
-const DFW=50.5;
+const DFW=58;
 (function(){const r=RNG(2025);let T=[],log=[],th=STATIC;const svg=byId('mplot');
   function one(){const a=[],b=[];for(let i=0;i<30;i++){a.push(30+3*r.n());b.push(30+2*r.n())}const s=tWelch(a,b);const ma=a.reduce((x,y)=>x+y)/30,mb=b.reduce((x,y)=>x+y)/30;T.push(s.t);return {t:s.t,ma,mb}}
   function draw(last){const h=histo(T,-5,5,0.2);const mx=Math.max(0.42,...h.dens);
@@ -1158,7 +1158,7 @@ onEnter(slideNo('#p8'),()=>{const r=RNG(8);const T=[];for(let k=0;k<20000;k++){c
   const P=[['3 pkt',[3,3,2,30]],['2 pkt',[2,3,2,30]],['1 pkt',[1,3,2,30]],['0 pkt',[0,3,2,30]],['1 pkt, ale n = 200',[1,3,2,200]]];
   function draw(){const d=+S.d.value,s1=+S.s1.value,s2=+S.s2.value,n=+S.n.value;
     byId('k7dO').textContent=pl(d,1)+' pkt';byId('k7s1O').textContent=pl(s1,1)+' pkt';byId('k7s2O').textContent=pl(s2,1)+' pkt';byId('k7nO').textContent=n;
-    const q1=s1*s1/n,q2=s2*s2/n,se=Math.sqrt(q1+q2),t=d/se,df=(q1+q2)**2/(q1*q1/(n-1)+q2*q2/(n-1)),p=tP2(t,df);
+    const q1=s1*s1/n,q2=s2*s2/n,se=Math.sqrt(q1+q2),t=d/se,df=2*n-2,p=tP2(t,df);
     byId('k7f').innerHTML='<math style="font-size:1.25em"><mrow><mi>t</mi><mo>=</mo>'+fr(mn(pl(d,1)),`<msqrt>${fr(sq(pl(s1,1),2),mn(n))}<mo>+</mo>${fr(sq(pl(s2,1),2),mn(n))}</msqrt>`)+'<mo>=</mo>'+fr(mn(pl(d,1)),mn(pl(se,3)))+`<mo>≈</mo><mn mathcolor="#1f78c8" style="font-weight:700">${pl(t,2)}</mn></mrow></math>`;
     byId('k7t').textContent=pl(t,2);byId('k7p').textContent=p<0.001?'< 0,001':pl(p,3);byId('k7pb').className='mbox '+(p<.05?'good':'bad');
     const f=x=>tPdf(x,df),cr=tCrit(df,.05),tv=Math.min(t,5.9);
